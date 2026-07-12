@@ -1,7 +1,8 @@
 // POST /discovery-submit
 // Body matches the landing page's Quick/Full discovery form:
 // { partyId?, mode, budget, contentRating, alcoholPref, interests?, occasion?,
-//   groupSize?, notes?, startLat?, startLng?, radiusMiles? }
+//   groupSize?, notes?, startLat?, startLng?, radiusMiles?, ageConfirmed?,
+//   disclaimerAccepted? }
 //
 // startLat/startLng default to the Livermore, CA 94551 pin (37.6819, -121.768)
 // when the client doesn't supply a location (e.g. geolocation denied, or the
@@ -9,6 +10,14 @@
 // capped at 200. Routes whose stops (with a known venue) all fall within the
 // radius of the chosen pin come back as suggestedRoutes, so the UI can show
 // only in-range itineraries.
+//
+// Age gate / disclaimer: disclaimerAccepted must be true on every request —
+// routes can involve alcohol and physical activities regardless of content
+// rating. ageConfirmed must additionally be true whenever contentRating is
+// NC-17 or Adults Only. This mirrors the database CHECK constraints added in
+// 0004_venue_search_and_age_gate.sql, so it's enforced twice: here (clear
+// error message for the client) and again at the DB layer (belt and
+// suspenders — no code path can bypass it, including future functions).
 //
 // Open to unauthenticated visitors too (a planner might fill this out before
 // creating an account), so it uses the admin client but validates the shape
@@ -20,6 +29,7 @@ import { getSupabaseAdmin } from "../_shared/supabaseAdmin.ts";
 const VALID_BUDGETS = ["$", "$$", "$$$", "$$$$"];
 const VALID_RATINGS = ["G-Rated", "PG-Rated", "NC-17", "Adults Only"];
 const VALID_ALCOHOL = ["Alcohol-Friendly", "Sober / Alcohol-Free"];
+const ADULT_RATINGS = ["NC-17", "Adults Only"];
 
 // Default pin: Livermore, CA 94551
 const DEFAULT_LAT = 37.6819;
@@ -54,6 +64,23 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid alcoholPref value" }, 400);
   }
 
+  const disclaimerAccepted = body.disclaimerAccepted === true;
+  if (!disclaimerAccepted) {
+    return jsonResponse(
+      { error: "You must accept the participant disclaimer before continuing." },
+      400,
+    );
+  }
+
+  const ageConfirmed = body.ageConfirmed === true;
+  const contentRating = body.contentRating as string | undefined;
+  if (contentRating && ADULT_RATINGS.includes(contentRating) && !ageConfirmed) {
+    return jsonResponse(
+      { error: "You must confirm you are 18 or older to select this content rating." },
+      400,
+    );
+  }
+
   const startLat = typeof body.startLat === "number" && Number.isFinite(body.startLat) ? body.startLat : DEFAULT_LAT;
   const startLng = typeof body.startLng === "number" && Number.isFinite(body.startLng) ? body.startLng : DEFAULT_LNG;
 
@@ -80,6 +107,9 @@ Deno.serve(async (req) => {
       start_lat: startLat,
       start_lng: startLng,
       radius_miles: radiusMiles,
+      age_confirmed: ageConfirmed,
+      disclaimer_accepted: disclaimerAccepted,
+      disclaimer_accepted_at: new Date().toISOString(),
     })
     .select()
     .single();
