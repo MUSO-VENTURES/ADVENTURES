@@ -1,7 +1,7 @@
 // POST /discovery-submit
 // Body matches the landing page's Quick/Full discovery form:
 // { partyId?, mode, budget, contentRating, alcoholPref, interests?, occasion?,
-//   groupSize?, notes?, startLat?, startLng?, radiusMiles?, ageConfirmed?,
+//   groupSize?, notes?, startLat?, startLng?, radiusMiles?, birthDate?,
 //   disclaimerAccepted? }
 //
 // startLat/startLng default to the Livermore, CA 94551 pin (37.6819, -121.768)
@@ -13,11 +13,17 @@
 //
 // Age gate / disclaimer: disclaimerAccepted must be true on every request —
 // routes can involve alcohol and physical activities regardless of content
-// rating. ageConfirmed must additionally be true whenever contentRating is
-// NC-17 or Adults Only. This mirrors the database CHECK constraints added in
-// 0004_venue_search_and_age_gate.sql, so it's enforced twice: here (clear
-// error message for the client) and again at the DB layer (belt and
-// suspenders — no code path can bypass it, including future functions).
+// rating. birthDate (YYYY-MM-DD) must be present and valid on every request
+// too — age is computed from it server-side rather than trusted from an
+// unverified checkbox, and the birthday itself is stored so it can be used
+// for birthday-special promotions later. Age must compute to 21+ whenever
+// contentRating is NC-17 or Adults Only (21, not 18, since routes can
+// involve bars and dispensaries — no lower "18 to enter" carve-out). This
+// mirrors the database CHECK
+// constraints added in 0004_venue_search_and_age_gate.sql /
+// 0006_birthday_capture.sql, so it's enforced twice: here (clear error
+// message for the client) and again at the DB layer (belt and suspenders —
+// no code path can bypass it, including future functions).
 //
 // Open to unauthenticated visitors too (a planner might fill this out before
 // creating an account), so it uses the admin client but validates the shape
@@ -36,6 +42,28 @@ const DEFAULT_LAT = 37.6819;
 const DEFAULT_LNG = -121.768;
 const DEFAULT_RADIUS_MILES = 25;
 const MAX_RADIUS_MILES = 200;
+
+const BIRTH_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Computes age in whole years from a YYYY-MM-DD string, using UTC to avoid
+// timezone edge cases shifting someone's birthday by a day. Returns null for
+// anything unparsable, in the future, or implausibly old (120+).
+function calculateAge(birthDateStr: string): number | null {
+  if (!BIRTH_DATE_RE.test(birthDateStr)) return null;
+  const birthDate = new Date(`${birthDateStr}T00:00:00Z`);
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (birthDate.getTime() > today.getTime()) return null; // future date
+
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+  const monthDiff = today.getUTCMonth() - birthDate.getUTCMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < birthDate.getUTCDate())) {
+    age--;
+  }
+  return age >= 0 && age <= 120 ? age : null;
+}
 
 Deno.serve(async (req) => {
   const preflight = handleOptions(req);
@@ -72,11 +100,20 @@ Deno.serve(async (req) => {
     );
   }
 
-  const ageConfirmed = body.ageConfirmed === true;
+  const birthDateRaw = typeof body.birthDate === "string" ? body.birthDate : null;
+  const age = birthDateRaw ? calculateAge(birthDateRaw) : null;
+  if (!birthDateRaw || age === null) {
+    return jsonResponse(
+      { error: "Please enter a valid birth date to continue." },
+      400,
+    );
+  }
+
+  const ageConfirmed = age >= 21;
   const contentRating = body.contentRating as string | undefined;
   if (contentRating && ADULT_RATINGS.includes(contentRating) && !ageConfirmed) {
     return jsonResponse(
-      { error: "You must confirm you are 18 or older to select this content rating." },
+      { error: "You must be 21 or older to select this content rating." },
       400,
     );
   }
@@ -107,6 +144,7 @@ Deno.serve(async (req) => {
       start_lat: startLat,
       start_lng: startLng,
       radius_miles: radiusMiles,
+      birth_date: birthDateRaw,
       age_confirmed: ageConfirmed,
       disclaimer_accepted: disclaimerAccepted,
       disclaimer_accepted_at: new Date().toISOString(),
