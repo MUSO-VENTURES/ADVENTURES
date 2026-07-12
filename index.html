@@ -711,6 +711,23 @@
   }
   .gate-disclaimer-box p{margin-bottom:10px;}
   .gate-disclaimer-box p:last-child{margin-bottom:0;}
+  .gate-field-row{ margin-bottom:16px; text-align:left; }
+  .gate-field-label{
+    display:block; font-weight:600; font-size:0.88rem; margin-bottom:6px;
+  }
+  .gate-field-optional{ font-weight:400; opacity:0.55; }
+  .gate-field-hint{ display:block; font-size:0.76rem; opacity:0.6; margin-top:5px; line-height:1.4; }
+  .gate-input{
+    width:100%;
+    background:var(--cream);
+    border:2px solid rgba(37,33,59,0.14);
+    color:var(--ink);
+    padding:11px 14px;
+    border-radius:12px;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:0.95rem;
+  }
+  .gate-input:focus{ outline:none; border-color:var(--coral); }
   .gate-check-row{
     display:flex; align-items:flex-start; gap:10px;
     margin-bottom:14px;
@@ -772,6 +789,12 @@
     margin-left:6px;
     vertical-align:middle;
   }
+  .pill-option.locked{
+    opacity:0.75;
+    filter:grayscale(0.35);
+    pointer-events:none;
+    cursor:not-allowed;
+  }
 
   /* ---------- TOP VENUES RESULTS ---------- */
   .venue-result-card{
@@ -803,17 +826,23 @@
 <div class="gate-overlay" id="gate-overlay">
   <div class="gate-card">
     <h2>Before you plan an adventure</h2>
-    <p class="gate-sub">MUSO Adventures routes can include alcohol, physical activities (like axe throwing), and visits to independent, third-party venues. Please read and confirm the following.</p>
+    <p class="gate-sub">MUSO Adventures routes can include alcohol, cannabis, physical activities (like axe throwing), and visits to independent, third-party venues. Please read and confirm the following.</p>
 
     <div class="gate-disclaimer-box" id="gate-disclaimer-text">
-      <p><strong>Participant acknowledgment &amp; assumption of risk.</strong> By using MUSO Adventures, you acknowledge and agree that: (1) routes may include physical activities, alcohol service, and visits to third-party venues not owned or operated by MUSO Ventures ("MUSO"); (2) MUSO curates and suggests routes and venues but does not supervise, control, or guarantee the conduct of any venue, staff, or fellow participant; (3) you are solely responsible for your own decisions, safety, and conduct — including alcohol consumption, participation in physical activities, and interactions with venues or other participants — throughout any MUSO Adventure; (4) any injury, loss, dispute, or other harm arising from your participation, including at third-party venues, is your responsibility and not that of MUSO, its officers, employees, or affiliates, except where caused by MUSO's own gross negligence or willful misconduct; (5) many venues (for example, axe-throwing locations) require their own separate liability waiver on-site, and this acknowledgment does not replace that requirement.</p>
-      <p><strong>Age requirement.</strong> You must be 18 years of age or older to access NC-17 or Adults Only content, or to consume alcohol where offered. MUSO relies on your self-reported confirmation of age and does not independently verify it.</p>
+      <p><strong>Participant acknowledgment &amp; assumption of risk.</strong> By using MUSO Adventures, you acknowledge and agree that: (1) routes may include physical activities, alcohol and/or cannabis service, and visits to third-party venues not owned or operated by MUSO Ventures ("MUSO"); (2) MUSO curates and suggests routes and venues but does not supervise, control, or guarantee the conduct of any venue, staff, or fellow participant; (3) you are solely responsible for your own decisions, safety, and conduct — including alcohol or cannabis consumption, participation in physical activities, and interactions with venues or other participants — throughout any MUSO Adventure; (4) any injury, loss, dispute, or other harm arising from your participation, including at third-party venues, is your responsibility and not that of MUSO, its officers, employees, or affiliates, except where caused by MUSO's own gross negligence or willful misconduct; (5) many venues (for example, axe-throwing locations, bars, and dispensaries) require their own separate liability waiver or ID check on-site, and this acknowledgment does not replace that requirement.</p>
+      <p><strong>Age requirement.</strong> You must be 21 years of age or older to access NC-17 or Adults Only content, or to enter routes involving bars, dispensaries, alcohol, or cannabis. We calculate your age from the birthday you provide below — MUSO does not otherwise independently verify identity, and venues will still check ID on-site as required by law.</p>
     </div>
 
-    <label class="gate-check-row">
-      <input type="checkbox" id="gate-age-check">
-      <span>I confirm that I am 18 years of age or older.</span>
-    </label>
+    <div class="gate-field-row">
+      <label for="gate-birthdate" class="gate-field-label">Your birthday</label>
+      <input type="date" id="gate-birthdate" class="gate-input">
+      <span class="gate-field-hint">Unlocks 21+ content when you're eligible — and lets us send you something for your birthday 🎂</span>
+    </div>
+    <div class="gate-field-row">
+      <label for="gate-email" class="gate-field-label">Email <span class="gate-field-optional">(optional — for birthday specials)</span></label>
+      <input type="email" id="gate-email" class="gate-input" placeholder="you@example.com">
+    </div>
+
     <label class="gate-check-row">
       <input type="checkbox" id="gate-disclaimer-check">
       <span>I have read and agree to the participant acknowledgment above. I understand that my choices and conduct during a MUSO Adventure are my own responsibility.</span>
@@ -945,10 +974,10 @@
             <span class="pill-title">🟡 PG-Rated</span><span class="pill-desc">A little flirty, nothing wild</span>
           </div>
           <div class="pill-option" data-value="NC-17" onclick="selectPill(this,'rating')">
-            <span class="pill-title">🟠 NC-17<span class="age-badge">18+</span></span><span class="pill-desc">Adult humor, still tasteful</span>
+            <span class="pill-title">🟠 NC-17<span class="age-badge">21+</span></span><span class="pill-desc">Adult humor, still tasteful</span>
           </div>
           <div class="pill-option" data-value="Adults Only" onclick="selectPill(this,'rating')">
-            <span class="pill-title">🔴 Adults Only<span class="age-badge">18+</span></span><span class="pill-desc">No limits</span>
+            <span class="pill-title">🔴 Adults Only<span class="age-badge">21+</span></span><span class="pill-desc">No limits</span>
           </div>
         </div>
       </div>
@@ -1575,6 +1604,7 @@
   };
 
   window.selectPill = function(el, group){
+    if (el.classList.contains('locked')) return;
     document.querySelectorAll('#' + group + '-group .pill-option').forEach(p => p.classList.remove('selected'));
     el.classList.add('selected');
   };
@@ -1635,40 +1665,111 @@
   const SUPABASE_URL = 'https://aqaezprsbcyqpnnavdpv.supabase.co';
   const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
   const GATE_STORAGE_KEY = 'muso_gate_accepted_v1';
+  const MIN_ADULT_AGE = 21; // bars + dispensaries — no exceptions
+
+  // Mirrors the server-side calculateAge() in the gate-capture / discovery-
+  // submit edge functions. This copy is for instant UI feedback only — the
+  // real enforcement always happens server-side.
+  function calculateAgeClient(birthDateStr){
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDateStr)) return null;
+    const bd = new Date(birthDateStr + 'T00:00:00');
+    if (isNaN(bd.getTime())) return null;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (bd.getTime() > today.getTime()) return null;
+    let age = today.getFullYear() - bd.getFullYear();
+    const m = today.getMonth() - bd.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+    return (age >= 0 && age <= 120) ? age : null;
+  }
+
+  // Greys the 21+ content rating pills to 75% opacity and disables them for
+  // anyone whose computed age is under 21. Everyone else can still use the
+  // rest of the site (G/PG routes) — only these two ratings are locked.
+  function updateContentRatingLocks(ageConfirmed){
+    document.querySelectorAll('#rating-group .pill-option').forEach(p => {
+      const isAdult = p.dataset.value === 'NC-17' || p.dataset.value === 'Adults Only';
+      const locked = isAdult && !ageConfirmed;
+      p.classList.toggle('locked', locked);
+      if (locked) {
+        p.setAttribute('aria-disabled', 'true');
+        p.classList.remove('selected');
+      } else {
+        p.removeAttribute('aria-disabled');
+      }
+    });
+  }
+
+  const birthdateInput = document.getElementById('gate-birthdate');
+  birthdateInput.max = new Date().toISOString().slice(0,10);
 
   function checkGateState(){
     const btn = document.getElementById('gate-enter-btn');
-    const ageOk = document.getElementById('gate-age-check').checked;
+    const ageOk = calculateAgeClient(birthdateInput.value) !== null;
     const discOk = document.getElementById('gate-disclaimer-check').checked;
     btn.classList.toggle('ready', ageOk && discOk);
   }
-  document.getElementById('gate-age-check').addEventListener('change', checkGateState);
+  birthdateInput.addEventListener('change', checkGateState);
   document.getElementById('gate-disclaimer-check').addEventListener('change', checkGateState);
 
   window.attemptEnterSite = function(){
-    const ageOk = document.getElementById('gate-age-check').checked;
+    const birthVal = birthdateInput.value;
+    const age = calculateAgeClient(birthVal);
     const discOk = document.getElementById('gate-disclaimer-check').checked;
     const err = document.getElementById('gate-error');
-    if (!ageOk || !discOk) {
-      err.textContent = 'Please confirm both boxes above to continue.';
+
+    if (age === null) {
+      err.textContent = 'Please enter a valid birth date to continue.';
+      return;
+    }
+    if (!discOk) {
+      err.textContent = 'Please agree to the participant acknowledgment to continue.';
       return;
     }
     err.textContent = '';
+
+    const ageConfirmed = age >= MIN_ADULT_AGE;
+    const email = (document.getElementById('gate-email').value || '').trim();
+
     try {
       localStorage.setItem(GATE_STORAGE_KEY, JSON.stringify({
-        ageConfirmed: true,
+        birthDate: birthVal,
+        age,
+        ageConfirmed,
         disclaimerAccepted: true,
         at: new Date().toISOString(),
       }));
     } catch (e) {}
+
+    updateContentRatingLocks(ageConfirmed);
     document.getElementById('gate-overlay').setAttribute('hidden', '');
+
+    // Best-effort, fire-and-forget: stores the birthday (and optional email)
+    // so it can be used for birthday-special promotions later. Never blocks
+    // entry to the site if this fails or the anon key isn't configured yet.
+    if (SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+      fetch(`${SUPABASE_URL}/functions/v1/gate-capture`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          birthDate: birthVal,
+          email: email || undefined,
+          disclaimerAccepted: true,
+        }),
+      }).catch(() => {});
+    }
   };
 
   (function initGate(){
     try {
       const saved = JSON.parse(localStorage.getItem(GATE_STORAGE_KEY) || 'null');
-      if (saved && saved.ageConfirmed && saved.disclaimerAccepted) {
+      if (saved && saved.disclaimerAccepted && saved.birthDate) {
         document.getElementById('gate-overlay').setAttribute('hidden', '');
+        updateContentRatingLocks(!!saved.ageConfirmed);
       }
     } catch (e) {}
   })();
