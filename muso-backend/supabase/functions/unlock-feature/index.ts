@@ -1,5 +1,6 @@
 // POST /unlock-feature
 // Body: { feature: 'venue_search' | 'radius' }
+//     | { feature: 'theme', themeId: string, action?: 'unlock' | 'activate' }
 // Requires Authorization: Bearer <user JWT> (Supabase Auth).
 //
 // 'venue_search' — unlocks real results from venues-search. Free once the
@@ -11,11 +12,19 @@
 // once unlocked (re-running it when already at/above the target is a no-op
 // success, not an error).
 //
-// All balance changes go through debit_coins()/direct profile updates via
-// the service role, which is the only role allowed to touch these columns
-// (see the `revoke update (...)` in 0007_gamification.sql) — so this
-// function is the single, auditable code path that can ever move a
-// player's coin balance or unlock flags.
+// 'theme' — unlocks or switches a visual "skin" for the player-facing
+// pages. action defaults to 'unlock' (checks the theme's unlock_method —
+// free/level/coins — via unlock_theme() in 0008_themes.sql); pass
+// action: 'activate' to switch the caller's active_theme_id to a theme
+// they've already unlocked (or that's free). Both paths are enforced
+// entirely inside the SQL functions, called here with the service role.
+//
+// All balance/unlock changes go through debit_coins()/direct profile
+// updates/the theme RPCs, via the service role, which is the only role
+// allowed to touch these columns (see the `revoke update (...)` in
+// 0007_gamification.sql and 0008_themes.sql) — so this function is the
+// single, auditable code path that can ever move a player's coin balance,
+// unlock flags, or active theme.
 
 import { handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { getSupabaseAdmin } from "../_shared/supabaseAdmin.ts";
@@ -54,8 +63,21 @@ Deno.serve(async (req) => {
   }
 
   const feature = body.feature;
-  if (feature !== "venue_search" && feature !== "radius") {
-    return jsonResponse({ error: "feature must be 'venue_search' or 'radius'" }, 400);
+  if (feature !== "venue_search" && feature !== "radius" && feature !== "theme") {
+    return jsonResponse({ error: "feature must be 'venue_search', 'radius', or 'theme'" }, 400);
+  }
+
+  if (feature === "theme") {
+    const themeId = typeof body.themeId === "string" ? body.themeId : null;
+    if (!themeId) {
+      return jsonResponse({ error: "themeId is required for feature 'theme'" }, 400);
+    }
+    const rpcName = body.action === "activate" ? "activate_theme" : "unlock_theme";
+
+    const { data, error } = await admin.rpc(rpcName, { p_profile_id: userId, p_theme_id: themeId });
+    if (error) return jsonResponse({ error: error.message }, 400);
+    if (!data?.ok) return jsonResponse({ error: data?.error ?? "Could not update theme." }, 402);
+    return jsonResponse({ ok: true, ...data });
   }
 
   const { data: profile, error: profileErr } = await admin
