@@ -387,12 +387,41 @@
   });
 
   // ---------- MAP ----------
+  // Custom "MUSO" map skin — brand cream/coral/teal palette instead of the
+  // default Google grey/green look. POI clutter and transit lines are hidden
+  // since our own venue markers carry that information.
+  const MUSO_MAP_STYLE = [
+    { elementType: 'geometry', stylers: [{ color: '#fff8f0' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#fff8f0' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#25213b' }] },
+    { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#5f4b8b' }, { weight: 0.6 }] },
+    { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+    { featureType: 'administrative.neighborhood', stylers: [{ visibility: 'off' }] },
+    { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#fff3e6' }] },
+    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#cdeee9' }] },
+    { featureType: 'poi.park', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#f0e4d4' }] },
+    { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+    { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#ffe8d1' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#ffa94d' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#e8873a' }] },
+    { featureType: 'road.local', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
+    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0fb9b1' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#0a7d78' }] },
+  ];
+
   window.initMap = function(){
     map = new google.maps.Map(document.getElementById('map'), {
       center: { lat: DEFAULT_LAT, lng: DEFAULT_LNG },
       zoom: 11,
       disableDefaultUI: false,
       streetViewControl: false,
+      mapTypeControl: false,
+      fullscreenControl: true,
+      styles: MUSO_MAP_STYLE,
     });
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ map, suppressMarkers: true });
