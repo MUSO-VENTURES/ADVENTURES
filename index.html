@@ -669,9 +669,162 @@
     .navlinks{display:none;}
     section{padding:8vh 6vw;}
   }
+
+  /* ---------- AGE GATE / DISCLAIMER ---------- */
+  .gate-overlay{
+    position:fixed; inset:0; z-index:1000;
+    background:rgba(37,33,59,0.92);
+    display:flex; align-items:center; justify-content:center;
+    padding:6vw;
+  }
+  .gate-overlay[hidden]{display:none;}
+  .gate-card{
+    background:var(--card);
+    border-radius:20px;
+    max-width:520px;
+    width:100%;
+    max-height:86vh;
+    overflow-y:auto;
+    padding:36px 32px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  .gate-card h2{
+    font-size:1.5rem;
+    margin-bottom:8px;
+  }
+  .gate-card .gate-sub{
+    opacity:0.75;
+    font-size:0.95rem;
+    margin-bottom:20px;
+  }
+  .gate-disclaimer-box{
+    background:var(--cream);
+    border:1px solid rgba(37,33,59,0.1);
+    border-radius:12px;
+    padding:16px;
+    max-height:220px;
+    overflow-y:auto;
+    font-size:0.82rem;
+    line-height:1.5;
+    opacity:0.85;
+    margin-bottom:20px;
+  }
+  .gate-disclaimer-box p{margin-bottom:10px;}
+  .gate-disclaimer-box p:last-child{margin-bottom:0;}
+  .gate-check-row{
+    display:flex; align-items:flex-start; gap:10px;
+    margin-bottom:14px;
+    font-size:0.88rem;
+    line-height:1.4;
+    cursor:pointer;
+  }
+  .gate-check-row input[type="checkbox"]{
+    margin-top:3px;
+    width:18px; height:18px;
+    accent-color:var(--coral);
+    flex-shrink:0;
+    cursor:pointer;
+  }
+  .gate-error{
+    color:var(--coral);
+    font-size:0.85rem;
+    margin-bottom:10px;
+    min-height:1.2em;
+  }
+  .gate-enter-btn{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:var(--ink);
+    color:#fff;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:1rem;
+    cursor:pointer;
+    opacity:0.4;
+    pointer-events:none;
+    transition:opacity .2s;
+  }
+  .gate-enter-btn.ready{
+    opacity:1;
+    pointer-events:auto;
+    background:var(--coral);
+  }
+  .gate-leave-link{
+    display:block;
+    text-align:center;
+    margin-top:14px;
+    font-size:0.82rem;
+    opacity:0.55;
+    text-decoration:underline;
+    cursor:pointer;
+  }
+  .age-badge{
+    display:inline-block;
+    font-size:0.65rem;
+    font-weight:700;
+    letter-spacing:0.03em;
+    padding:2px 7px;
+    border-radius:6px;
+    background:var(--coral);
+    color:#fff;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+
+  /* ---------- TOP VENUES RESULTS ---------- */
+  .venue-result-card{
+    display:flex; justify-content:space-between; align-items:center;
+    gap:12px;
+    background:var(--card);
+    border:1px solid rgba(37,33,59,0.08);
+    border-radius:12px;
+    padding:14px 16px;
+    margin-top:10px;
+    text-align:left;
+  }
+  .venue-result-name{font-weight:600;}
+  .venue-result-meta{font-size:0.82rem; opacity:0.65;}
+  .venue-result-rating{
+    font-weight:700; color:var(--deep-teal);
+    white-space:nowrap;
+  }
+  .venue-status-msg{
+    font-size:0.85rem;
+    opacity:0.7;
+    margin-top:10px;
+    text-align:left;
+  }
 </style>
 </head>
 <body>
+
+<div class="gate-overlay" id="gate-overlay">
+  <div class="gate-card">
+    <h2>Before you plan an adventure</h2>
+    <p class="gate-sub">MUSO Adventures routes can include alcohol, physical activities (like axe throwing), and visits to independent, third-party venues. Please read and confirm the following.</p>
+
+    <div class="gate-disclaimer-box" id="gate-disclaimer-text">
+      <p><strong>Participant acknowledgment &amp; assumption of risk.</strong> By using MUSO Adventures, you acknowledge and agree that: (1) routes may include physical activities, alcohol service, and visits to third-party venues not owned or operated by MUSO Ventures ("MUSO"); (2) MUSO curates and suggests routes and venues but does not supervise, control, or guarantee the conduct of any venue, staff, or fellow participant; (3) you are solely responsible for your own decisions, safety, and conduct — including alcohol consumption, participation in physical activities, and interactions with venues or other participants — throughout any MUSO Adventure; (4) any injury, loss, dispute, or other harm arising from your participation, including at third-party venues, is your responsibility and not that of MUSO, its officers, employees, or affiliates, except where caused by MUSO's own gross negligence or willful misconduct; (5) many venues (for example, axe-throwing locations) require their own separate liability waiver on-site, and this acknowledgment does not replace that requirement.</p>
+      <p><strong>Age requirement.</strong> You must be 18 years of age or older to access NC-17 or Adults Only content, or to consume alcohol where offered. MUSO relies on your self-reported confirmation of age and does not independently verify it.</p>
+    </div>
+
+    <label class="gate-check-row">
+      <input type="checkbox" id="gate-age-check">
+      <span>I confirm that I am 18 years of age or older.</span>
+    </label>
+    <label class="gate-check-row">
+      <input type="checkbox" id="gate-disclaimer-check">
+      <span>I have read and agree to the participant acknowledgment above. I understand that my choices and conduct during a MUSO Adventure are my own responsibility.</span>
+    </label>
+
+    <div class="gate-error" id="gate-error"></div>
+
+    <button type="button" class="gate-enter-btn" id="gate-enter-btn" onclick="attemptEnterSite()">Continue to MUSO Adventures</button>
+    <span class="gate-leave-link" onclick="window.location.href='https://www.google.com'">I do not agree — leave the site</span>
+  </div>
+</div>
 
 <nav>
   <div class="logo"><span class="dot"></span>MUSO Adventures</div>
@@ -765,6 +918,24 @@
       </div>
 
       <div class="form-group">
+        <span class="form-label">Search Radius</span>
+        <span class="form-hint">Defaults to 25 miles from Livermore, CA — drag to widen or narrow the search area</span>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <input type="range" id="radius-slider" min="1" max="100" value="25" style="flex:1; accent-color:var(--coral);" oninput="document.getElementById('radius-value').textContent = this.value">
+          <span id="radius-value" style="font-weight:600; min-width:64px;">25 mi</span>
+        </div>
+      </div>
+
+      <div class="form-group" id="top-venues-group">
+        <span class="form-label">Top-Rated Venues Nearby</span>
+        <span class="form-hint">Pulls live, rated venues within your budget and radius</span>
+        <div style="text-align:left;">
+          <button type="button" class="replay-btn" onclick="findTopVenues()" id="find-venues-btn">Find Top-Rated Venues</button>
+        </div>
+        <div id="top-venues-results"></div>
+      </div>
+
+      <div class="form-group">
         <span class="form-label">Content Rating</span>
         <div class="pill-group" id="rating-group">
           <div class="pill-option" data-value="G-Rated" onclick="selectPill(this,'rating')">
@@ -774,10 +945,10 @@
             <span class="pill-title">🟡 PG-Rated</span><span class="pill-desc">A little flirty, nothing wild</span>
           </div>
           <div class="pill-option" data-value="NC-17" onclick="selectPill(this,'rating')">
-            <span class="pill-title">🟠 NC-17</span><span class="pill-desc">Adult humor, still tasteful</span>
+            <span class="pill-title">🟠 NC-17<span class="age-badge">18+</span></span><span class="pill-desc">Adult humor, still tasteful</span>
           </div>
           <div class="pill-option" data-value="Adults Only" onclick="selectPill(this,'rating')">
-            <span class="pill-title">🔴 Adults Only</span><span class="pill-desc">No limits</span>
+            <span class="pill-title">🔴 Adults Only<span class="age-badge">18+</span></span><span class="pill-desc">No limits</span>
           </div>
         </div>
       </div>
@@ -1416,6 +1587,22 @@
     const budget = document.querySelector('#budget-group .pill-option.selected');
     const rating = document.querySelector('#rating-group .pill-option.selected');
     const alcohol = document.querySelector('#alcohol-group .pill-option.selected');
+
+    // Defense in depth: the site-wide gate already blocks entry without both
+    // confirmations, but double-check here too in case the rating pill was
+    // changed after the gate closed. Real enforcement lives server-side in
+    // the discovery-submit edge function — this is just a UX nicety.
+    if (rating && (rating.dataset.value === 'NC-17' || rating.dataset.value === 'Adults Only')) {
+      let gateOk = false;
+      try {
+        const saved = JSON.parse(localStorage.getItem('muso_gate_accepted_v1') || 'null');
+        gateOk = !!(saved && saved.ageConfirmed && saved.disclaimerAccepted);
+      } catch (e) {}
+      if (!gateOk) {
+        document.getElementById('gate-overlay').removeAttribute('hidden');
+        return;
+      }
+    }
     const interests = Array.from(document.querySelectorAll('#interests-group .multiselect-chip.selected')).map(c => c.dataset.value);
     const goalEl = document.getElementById('goal-select');
     const groupSizeEl = document.getElementById('group-size');
@@ -1438,6 +1625,111 @@
         <p style="opacity:0.7; font-size:0.85rem; margin-top:16px;">In the live app, this fine-tunes which routes, venues, and content show up for your excursion.</p>
       </div>
     `;
+  };
+
+  // ---------- AGE GATE ----------
+  // Fill in your project's anon key from Supabase > Project Settings > API.
+  // The anon key is safe to expose in client-side code by design — it's not
+  // a secret, it's the public key Supabase's row-level security is built to
+  // work with. Do not put the service role key here.
+  const SUPABASE_URL = 'https://aqaezprsbcyqpnnavdpv.supabase.co';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const GATE_STORAGE_KEY = 'muso_gate_accepted_v1';
+
+  function checkGateState(){
+    const btn = document.getElementById('gate-enter-btn');
+    const ageOk = document.getElementById('gate-age-check').checked;
+    const discOk = document.getElementById('gate-disclaimer-check').checked;
+    btn.classList.toggle('ready', ageOk && discOk);
+  }
+  document.getElementById('gate-age-check').addEventListener('change', checkGateState);
+  document.getElementById('gate-disclaimer-check').addEventListener('change', checkGateState);
+
+  window.attemptEnterSite = function(){
+    const ageOk = document.getElementById('gate-age-check').checked;
+    const discOk = document.getElementById('gate-disclaimer-check').checked;
+    const err = document.getElementById('gate-error');
+    if (!ageOk || !discOk) {
+      err.textContent = 'Please confirm both boxes above to continue.';
+      return;
+    }
+    err.textContent = '';
+    try {
+      localStorage.setItem(GATE_STORAGE_KEY, JSON.stringify({
+        ageConfirmed: true,
+        disclaimerAccepted: true,
+        at: new Date().toISOString(),
+      }));
+    } catch (e) {}
+    document.getElementById('gate-overlay').setAttribute('hidden', '');
+  };
+
+  (function initGate(){
+    try {
+      const saved = JSON.parse(localStorage.getItem(GATE_STORAGE_KEY) || 'null');
+      if (saved && saved.ageConfirmed && saved.disclaimerAccepted) {
+        document.getElementById('gate-overlay').setAttribute('hidden', '');
+      }
+    } catch (e) {}
+  })();
+
+  // ---------- TOP-RATED VENUES (Yelp, via the venues-search edge function) ----------
+  window.findTopVenues = async function(){
+    const resultsEl = document.getElementById('top-venues-results');
+    const btn = document.getElementById('find-venues-btn');
+    const budget = document.querySelector('#budget-group .pill-option.selected');
+    const radius = document.getElementById('radius-slider').value;
+
+    if (SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
+      resultsEl.innerHTML = '<p class="venue-status-msg">Live venue search isn\'t configured on this page yet — add your Supabase anon key at the top of the script to enable it.</p>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Searching…';
+    resultsEl.innerHTML = '<p class="venue-status-msg">Looking for top-rated spots…</p>';
+
+    try {
+      const params = new URLSearchParams({
+        // Defaults to the Livermore, CA 94551 pin server-side if omitted.
+        radiusMiles: radius,
+      });
+      if (budget) params.set('budget', budget.dataset.value);
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/venues-search?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        resultsEl.innerHTML = `<p class="venue-status-msg">Couldn't load venues: ${data.error || res.statusText}</p>`;
+        return;
+      }
+
+      const venues = data.venues || [];
+      if (!venues.length) {
+        resultsEl.innerHTML = '<p class="venue-status-msg">No top-rated venues found in that radius/budget — try widening the search.</p>';
+        return;
+      }
+
+      resultsEl.innerHTML = venues.slice(0, 8).map(v => `
+        <div class="venue-result-card">
+          <div>
+            <div class="venue-result-name">${v.name}</div>
+            <div class="venue-result-meta">${v.category || ''}${v.address ? ' · ' + v.address : ''}</div>
+          </div>
+          <div class="venue-result-rating">${v.rating ? '⭐ ' + v.rating : ''}${v.rating_count ? ' (' + v.rating_count + ')' : ''}</div>
+        </div>
+      `).join('');
+    } catch (e) {
+      resultsEl.innerHTML = `<p class="venue-status-msg">Something went wrong reaching the venue search: ${e.message}</p>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Find Top-Rated Venues';
+    }
   };
 </script>
 
