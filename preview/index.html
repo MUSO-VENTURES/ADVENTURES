@@ -193,6 +193,79 @@
     display:block; text-align:center; margin-top:14px; font-size:0.82rem; opacity:0.55;
     text-decoration:underline; cursor:pointer;
   }
+
+  /* ---------- ACCOUNT / GAMIFICATION ---------- */
+  .account-bar{
+    max-width:1200px; margin:0 auto; padding:0 6vw 2vh;
+    display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap;
+  }
+  .signin-form{ display:flex; gap:8px; align-items:center; }
+  .signin-form input{
+    background:var(--card); border:2px solid rgba(37,33,59,0.14); color:var(--ink);
+    padding:8px 12px; border-radius:999px; font-family:'Space Grotesk',sans-serif; font-size:0.85rem;
+    width:200px;
+  }
+  .signin-form input:focus{ outline:none; border-color:var(--coral); }
+  .signin-btn{
+    background:var(--ink); color:#fff; border:none; padding:9px 18px; border-radius:999px;
+    font-weight:700; font-family:'Fredoka',sans-serif; font-size:0.85rem; cursor:pointer;
+  }
+  .signin-msg{ font-size:0.78rem; opacity:0.65; }
+  .account-chip{
+    display:flex; align-items:center; gap:10px; background:var(--card); border-radius:999px;
+    padding:6px 8px 6px 16px; box-shadow:0 4px 14px rgba(37,33,59,0.08); font-size:0.82rem;
+  }
+  .level-pill{
+    background:var(--plum); color:#fff; font-weight:700; font-family:'Fredoka',sans-serif;
+    padding:4px 10px; border-radius:999px; font-size:0.76rem;
+  }
+  .coin-pill{
+    background:var(--tangerine); color:var(--ink); font-weight:700; font-family:'Fredoka',sans-serif;
+    padding:4px 10px; border-radius:999px; font-size:0.76rem; display:flex; align-items:center; gap:4px;
+  }
+  .buy-coins-btn{
+    background:transparent; border:2px solid var(--ink); color:var(--ink);
+    padding:6px 14px; border-radius:999px; font-weight:700; font-family:'Fredoka',sans-serif;
+    font-size:0.78rem; cursor:pointer;
+  }
+  .buy-coins-btn:hover{ background:var(--ink); color:#fff; }
+  .signout-link{ font-size:0.76rem; opacity:0.55; text-decoration:underline; cursor:pointer; }
+
+  /* ---------- RADIUS UNLOCK ---------- */
+  .radius-lock-hint{
+    font-size:0.76rem; opacity:0.7; margin-top:4px; display:flex; align-items:center; gap:6px;
+  }
+  .radius-unlock-btn{
+    background:none; border:1.5px solid var(--plum); color:var(--plum); border-radius:999px;
+    padding:2px 10px; font-size:0.72rem; font-weight:700; cursor:pointer; font-family:'Fredoka',sans-serif;
+  }
+
+  /* ---------- LOCKED VENUE TEASER ---------- */
+  .locked-wrap{ position:relative; }
+  .venue-card.teaser{ filter:blur(5px); pointer-events:none; user-select:none; }
+  .lock-overlay{
+    position:absolute; inset:0; z-index:5;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:24px; gap:12px;
+    background:linear-gradient(180deg, rgba(255,248,240,0.2) 0%, rgba(255,248,240,0.92) 40%);
+    border-radius:18px;
+  }
+  .lock-overlay .lock-icon{ font-size:2rem; }
+  .lock-overlay h3{ font-family:'Fredoka',sans-serif; font-size:1.05rem; }
+  .lock-overlay p{ font-size:0.85rem; opacity:0.75; max-width:280px; }
+  .lock-progress{
+    width:100%; max-width:220px; height:8px; border-radius:999px; background:rgba(37,33,59,0.1);
+    overflow:hidden; margin-top:2px;
+  }
+  .lock-progress-fill{ height:100%; background:var(--plum); border-radius:999px; }
+  .lock-actions{ display:flex; flex-direction:column; gap:8px; width:100%; max-width:220px; }
+  .lock-actions button{
+    border:none; border-radius:999px; padding:10px; font-weight:700; font-family:'Fredoka',sans-serif;
+    font-size:0.85rem; cursor:pointer;
+  }
+  .unlock-coins-btn{ background:var(--coral); color:#fff; }
+  .unlock-coins-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .unlock-signin-btn{ background:var(--ink); color:#fff; }
 </style>
 </head>
 <body>
@@ -234,6 +307,10 @@
   <a class="back-link" href="/">&larr; Back to main site</a>
 </nav>
 
+<div class="account-bar" id="account-bar">
+  <!-- Populated by JS: either a sign-in form, or a level/coins chip once signed in. -->
+</div>
+
 <header class="hero">
   <span class="eyebrow">Live preview</span>
   <h1>Real venues. Real ratings. Real directions.</h1>
@@ -256,6 +333,9 @@
       <input type="range" id="radius-slider" min="1" max="25" value="15">
       <span id="radius-value">15 mi</span>
     </div>
+    <div class="radius-lock-hint" id="radius-lock-hint" hidden>
+      🔒 Unlocks up to 100 mi — <button type="button" class="radius-unlock-btn" onclick="unlockFeature('radius')">150 coins</button>
+    </div>
   </div>
   <div class="control-group">
     <button type="button" class="find-btn" id="find-btn" onclick="loadVenues()">Find Real Venues</button>
@@ -272,8 +352,10 @@
     <div id="map"></div>
     <div class="route-summary" id="route-summary"></div>
   </div>
-  <div class="venue-cards" id="venue-cards">
-    <div class="empty-state">Venues you find will show up here with real photos, ratings, and directions.</div>
+  <div class="locked-wrap" id="venue-locked-wrap">
+    <div class="venue-cards" id="venue-cards">
+      <div class="empty-state">Venues you find will show up here with real photos, ratings, and directions.</div>
+    </div>
   </div>
 </div>
 
@@ -281,6 +363,7 @@
   <p>This is a live preview of real, third-party venue data. MUSO Adventures does not own or operate these venues. This page is a concept preview, not the finished product.</p>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
   // ---------- CONFIG ----------
   // Fill in your project's anon key from Supabase > Project Settings > API,
@@ -291,13 +374,274 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxYWV6cHJzYmN5cXBubmF2ZHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MDU1NjksImV4cCI6MjA5OTM4MTU2OX0.8rpmMQSo6pgjdKfeeBFgY3lybvNVmFo4O10gjLg2kso';
   const GATE_STORAGE_KEY = 'muso_gate_accepted_v1'; // shared with the main site
 
-  const DEFAULT_LAT = 37.6819;
+  const supabaseClient = (SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY' && window.supabase)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  // ---------- GAMIFICATION STATE ----------
+  const UNLOCK_LEVEL = 5;              // must match unlock-feature edge function
+  const VENUE_SEARCH_COST = 250;
+  const RADIUS_UNLOCK_COST = 150;
+  const RADIUS_UNLOCK_MILES = 100;
+  const FREE_RADIUS_MILES = 25;
+
+  let currentSession = null;   // Supabase auth session, or null if signed out
+  let currentProfile = null;   // { level, xp, adventure_coins, unlocked_radius_miles, venues_search_unlocked }
+  let lastSearchUnlocked = false; // from the most recent venues-search response
+
+  function xpForLevel(level) { return (level - 1) * 100; }
+
+  async function getAccessToken() {
+    if (!supabaseClient || !currentSession) return null;
+    const { data } = await supabaseClient.auth.getSession();
+    return data?.session?.access_token ?? null;
+  }
+
+  async function fetchOrCreateProfile(userId, email) {
+    if (!supabaseClient) return null;
+    const { data: existing } = await supabaseClient
+      .from('profiles')
+      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked')
+      .eq('id', userId)
+      .maybeSingle();
+    if (existing) return existing;
+
+    // First sign-in for this account — create the profile row. display_name
+    // is required by the schema; default to the part of the email before @.
+    const displayName = (email || 'Explorer').split('@')[0];
+    const { data: created, error } = await supabaseClient
+      .from('profiles')
+      .insert({ id: userId, display_name: displayName })
+      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked')
+      .single();
+    if (error) { console.warn('Could not create profile:', error.message); return null; }
+    return created;
+  }
+
+  function renderAccountBar() {
+    const el = document.getElementById('account-bar');
+    if (!supabaseClient) {
+      el.innerHTML = '<span class="signin-msg">Sign-in isn\'t configured on this page yet.</span>';
+      return;
+    }
+    if (!currentSession) {
+      el.innerHTML = `
+        <form class="signin-form" onsubmit="event.preventDefault(); sendMagicLink();">
+          <input type="email" id="signin-email" placeholder="you@example.com" required>
+          <button type="submit" class="signin-btn">Sign in</button>
+        </form>
+        <span class="signin-msg" id="signin-msg"></span>
+      `;
+      return;
+    }
+    const p = currentProfile;
+    const level = p?.level ?? 1;
+    const coins = p?.adventure_coins ?? 0;
+    el.innerHTML = `
+      <div class="account-chip">
+        <span class="level-pill">Lv ${level}</span>
+        <span class="coin-pill">🪙 ${coins}</span>
+        <button type="button" class="buy-coins-btn" onclick="openBuyCoins()">Buy Coins</button>
+        <span class="signout-link" onclick="signOut()">Sign out</span>
+      </div>
+    `;
+  }
+
+  window.sendMagicLink = async function () {
+    const emailInput = document.getElementById('signin-email');
+    const msg = document.getElementById('signin-msg');
+    const email = emailInput.value.trim();
+    if (!email) return;
+    msg.textContent = 'Sending link…';
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href },
+    });
+    msg.textContent = error ? `Error: ${error.message}` : 'Check your email for a sign-in link.';
+  };
+
+  window.signOut = async function () {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    currentSession = null;
+    currentProfile = null;
+    renderAccountBar();
+    updateLockedVenueUI();
+    updateRadiusLockUI();
+  };
+
+  window.openBuyCoins = async function () {
+    if (!currentSession) return;
+    const pack = prompt('Which pack? Type "small" (100 coins, $0.99), "medium" (600 coins, $4.99), or "large" (1500 coins, $9.99).', 'medium');
+    if (!pack || !['small', 'medium', 'large'].includes(pack.trim().toLowerCase())) return;
+    const token = await getAccessToken();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/buy-coins`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          pack: pack.trim().toLowerCase(),
+          successUrl: window.location.href.split('?')[0] + '?checkout=success',
+          cancelUrl: window.location.href.split('?')[0] + '?checkout=cancel',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Could not start checkout.'); return; }
+      window.location.href = data.url;
+    } catch (e) {
+      alert('Could not reach checkout: ' + e.message);
+    }
+  };
+
+  window.unlockFeature = async function (feature) {
+    if (!currentSession) {
+      document.getElementById('signin-email')?.focus();
+      return;
+    }
+    const token = await getAccessToken();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/unlock-feature`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ feature }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Could not unlock that yet.'); return; }
+      currentProfile = await fetchOrCreateProfile(currentSession.user.id, currentSession.user.email);
+      renderAccountBar();
+      updateLockedVenueUI();
+      updateRadiusLockUI();
+      if (feature === 'venue_search') loadVenues();
+    } catch (e) {
+      alert('Could not reach the unlock service: ' + e.message);
+    }
+  };
+
+  function updateRadiusLockUI() {
+    const cap = currentProfile?.unlocked_radius_miles ?? FREE_RADIUS_MILES;
+    const slider = document.getElementById('radius-slider');
+    const hint = document.getElementById('radius-lock-hint');
+    if (cap >= RADIUS_UNLOCK_MILES) {
+      slider.max = RADIUS_UNLOCK_MILES;
+      hint.hidden = true;
+    } else {
+      slider.max = FREE_RADIUS_MILES;
+      if (Number(slider.value) > FREE_RADIUS_MILES) slider.value = FREE_RADIUS_MILES;
+      hint.hidden = false;
+    }
+  }
+
+  function updateLockedVenueUI() {
+    const wrap = document.getElementById('venue-locked-wrap');
+    let overlay = document.getElementById('lock-overlay');
+    if (overlay) overlay.remove();
+
+    if (lastSearchUnlocked) {
+      document.querySelectorAll('#venue-cards .venue-card').forEach(c => c.classList.remove('teaser'));
+      return;
+    }
+
+    document.querySelectorAll('#venue-cards .venue-card').forEach(c => c.classList.add('teaser'));
+
+    const level = currentProfile?.level ?? 1;
+    const xp = currentProfile?.xp ?? 0;
+    const coins = currentProfile?.adventure_coins ?? 0;
+    const pct = Math.min(100, Math.round((xp / xpForLevel(UNLOCK_LEVEL)) * 100));
+
+    const div = document.createElement('div');
+    div.id = 'lock-overlay';
+    div.className = 'lock-overlay';
+    div.innerHTML = currentSession ? `
+      <div class="lock-icon">🔒</div>
+      <h3>Real venues are locked</h3>
+      <p>Unlock at Level ${UNLOCK_LEVEL} (you're Level ${level}) or spend ${VENUE_SEARCH_COST} Adventure Coins.</p>
+      <div class="lock-progress"><div class="lock-progress-fill" style="width:${pct}%"></div></div>
+      <div class="lock-actions">
+        <button type="button" class="unlock-coins-btn" ${coins < VENUE_SEARCH_COST ? 'disabled' : ''} onclick="unlockFeature('venue_search')">Unlock for ${VENUE_SEARCH_COST} coins</button>
+      </div>
+    ` : `
+      <div class="lock-icon">🔒</div>
+      <h3>Real venues are locked</h3>
+      <p>Sign in, then reach Level ${UNLOCK_LEVEL} or spend ${VENUE_SEARCH_COST} Adventure Coins to unlock.</p>
+      <div class="lock-actions">
+        <button type="button" class="unlock-signin-btn" onclick="document.getElementById('signin-email')?.focus()">Sign in to unlock</button>
+      </div>
+    `;
+    wrap.appendChild(div);
+  }
+
+  async function initAuth() {
+    if (!supabaseClient) { renderAccountBar(); return; }
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    currentSession = session;
+    if (currentSession) {
+      currentProfile = await fetchOrCreateProfile(currentSession.user.id, currentSession.user.email);
+    }
+    renderAccountBar();
+    updateRadiusLockUI();
+
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+      currentSession = session;
+      currentProfile = session ? await fetchOrCreateProfile(session.user.id, session.user.email) : null;
+      renderAccountBar();
+      updateLockedVenueUI();
+      updateRadiusLockUI();
+    });
+
+    if (new URLSearchParams(window.location.search).get('checkout') === 'success' && currentSession) {
+      // Give the Stripe webhook a moment to land before refreshing the balance.
+      setTimeout(async () => {
+        currentProfile = await fetchOrCreateProfile(currentSession.user.id, currentSession.user.email);
+        renderAccountBar();
+        updateLockedVenueUI();
+        updateRadiusLockUI();
+      }, 2500);
+    }
+  }
+
+  const DEFAULT_LAT = 37.6819; // Livermore, CA — fallback when geolocation is denied/unavailable
   const DEFAULT_LNG = -121.768;
+
+  // Participant's actual location, when we have it. initMap() and every
+  // search/route call use these instead of the raw defaults, so the whole
+  // page centers on "you" by default rather than a fixed pin.
+  let currentLat = DEFAULT_LAT;
+  let currentLng = DEFAULT_LNG;
+  let usingRealLocation = false;
 
   let map, directionsService, directionsRenderer, startMarker;
   let venueMarkers = [];
   let currentVenues = [];
   let infoWindow;
+
+  function requestGeolocation(){
+    if (!('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        currentLat = pos.coords.latitude;
+        currentLng = pos.coords.longitude;
+        usingRealLocation = true;
+        // If the map is already up (geolocation resolved after initMap
+        // fired), recenter it and move the start pin to the real spot.
+        if (map && startMarker) {
+          map.setCenter({ lat: currentLat, lng: currentLng });
+          startMarker.setPosition({ lat: currentLat, lng: currentLng });
+          startMarker.setTitle('Starting point — your location');
+        }
+      },
+      () => { /* denied or unavailable — silently keep the Livermore fallback */ },
+      { timeout: 8000, maximumAge: 5 * 60 * 1000 },
+    );
+  }
+  requestGeolocation();
 
   // ---------- AGE GATE ----------
   function calculateAgeClient(birthDateStr){
@@ -415,7 +759,7 @@
 
   window.initMap = function(){
     map = new google.maps.Map(document.getElementById('map'), {
-      center: { lat: DEFAULT_LAT, lng: DEFAULT_LNG },
+      center: { lat: currentLat, lng: currentLng },
       zoom: 11,
       disableDefaultUI: false,
       streetViewControl: false,
@@ -428,9 +772,9 @@
     infoWindow = new google.maps.InfoWindow();
 
     startMarker = new google.maps.Marker({
-      position: { lat: DEFAULT_LAT, lng: DEFAULT_LNG },
+      position: { lat: currentLat, lng: currentLng },
       map,
-      title: 'Starting point — Livermore, CA',
+      title: usingRealLocation ? 'Starting point — your location' : 'Starting point — Livermore, CA',
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
         scale: 9,
@@ -466,7 +810,7 @@
           ${v.price ? `<span class="venue-price">${v.price}</span>` : ''}
         </div>
         <div class="venue-body">
-          <div class="venue-name">${v.name}</div>
+          <div class="venue-name">${v.name}${v.partner_tier && v.partner_tier !== 'basic' ? ' ⭐' : ''}</div>
           <div class="venue-meta">${v.category || ''}${v.address ? ' · ' + v.address : ''}</div>
           <div class="venue-rating">${starString(v.rating)}${v.rating_count ? ' (' + v.rating_count + ')' : ''}</div>
           <div class="venue-actions">
@@ -476,6 +820,7 @@
         </div>
       </div>
     `).join('');
+    updateLockedVenueUI();
   }
 
   function addMarkersForVenues(venues){
@@ -546,16 +891,48 @@
     });
   };
 
+  // Featured (premium/sponsor) venues can request a fixed, 1-indexed stop
+  // slot via featured_position (e.g. always the final "headliner" stop).
+  // Everyone else — including other featured venues with no fixed slot —
+  // just fills in around them in their existing (rating-priority) order.
+  // If two venues somehow claim the same slot, the first one wins the pin
+  // and the second falls back to floating.
+  function applyFeaturedPositions(venues){
+    const n = venues.length;
+    const pinned = new Map();
+    const floaters = [];
+    venues.forEach(v => {
+      const pos = v.featured_position;
+      if (pos && pos >= 1 && pos <= n && !pinned.has(pos - 1)) {
+        pinned.set(pos - 1, v);
+      } else {
+        floaters.push(v);
+      }
+    });
+    const result = new Array(n);
+    pinned.forEach((v, idx) => { result[idx] = v; });
+    let fi = 0;
+    for (let i = 0; i < n; i++) {
+      if (!result[i]) result[i] = floaters[fi++];
+    }
+    return result;
+  }
+
   window.planRoute = function(){
     if (!currentVenues.length) return;
-    const waypoints = currentVenues.slice(0, -1).map(v => ({ location: { lat: v.lat, lng: v.lng }, stopover: true }));
-    const last = currentVenues[currentVenues.length - 1];
+    const orderedVenues = applyFeaturedPositions(currentVenues);
+    const hasPinnedStop = orderedVenues.some(v => v.featured_position);
+    const waypoints = orderedVenues.slice(0, -1).map(v => ({ location: { lat: v.lat, lng: v.lng }, stopover: true }));
+    const last = orderedVenues[orderedVenues.length - 1];
 
     directionsService.route({
       origin: startMarker.getPosition(),
       destination: { lat: last.lat, lng: last.lng },
       waypoints,
-      optimizeWaypoints: true,
+      // A pinned featured stop means the order is fixed by that placement,
+      // not by shortest-path — so only let Google reorder freely when
+      // nothing on this route has purchased a set slot.
+      optimizeWaypoints: !hasPinnedStop,
       travelMode: google.maps.TravelMode.DRIVING,
     }, (result, status) => {
       if (status === 'OK') {
@@ -563,7 +940,8 @@
         const legs = result.routes[0].legs;
         const totalMiles = legs.reduce((sum, l) => sum + l.distance.value, 0) / 1609.34;
         const totalMins = legs.reduce((sum, l) => sum + l.duration.value, 0) / 60;
-        showRouteSummary(`Full route: ${legs.length} legs, about ${totalMiles.toFixed(1)} miles and ${Math.round(totalMins)} minutes total driving.`);
+        const pinnedNote = hasPinnedStop ? ' Stop order follows a featured venue\'s reserved placement.' : '';
+        showRouteSummary(`Full route: ${legs.length} legs, about ${totalMiles.toFixed(1)} miles and ${Math.round(totalMins)} minutes total driving.${pinnedNote}`);
       } else {
         showRouteSummary(`Couldn't build a full route (${status}). Try fewer venues or a smaller radius.`);
       }
@@ -596,12 +974,20 @@
     document.getElementById('route-summary').classList.remove('visible');
 
     try {
-      const params = new URLSearchParams({ radiusMiles: radius });
+      const params = new URLSearchParams({
+        radiusMiles: radius,
+        startLat: String(currentLat),
+        startLng: String(currentLng),
+      });
       if (budget) params.set('budget', budget.dataset.value);
 
+      // Signed-in players send their own session token so venues-search can
+      // check their level/coins/unlock status server-side; signed-out
+      // visitors fall back to the anon key and always get unlocked:false.
+      const userToken = await getAccessToken();
       const res = await fetch(`${SUPABASE_URL}/functions/v1/venues-search?${params.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${userToken || SUPABASE_ANON_KEY}`,
           'apikey': SUPABASE_ANON_KEY,
         },
       });
@@ -613,13 +999,14 @@
         return;
       }
 
+      lastSearchUnlocked = data.unlocked === true;
       currentVenues = (data.venues || []).filter(v => v.lat != null && v.lng != null).slice(0, 10);
       renderVenueCards(currentVenues);
       addMarkersForVenues(currentVenues);
       statusEl.textContent = currentVenues.length
-        ? `Found ${currentVenues.length} real, top-rated venues within ${data.searchedRadiusMiles || radius} miles.`
+        ? `Found ${currentVenues.length} real, top-rated venues within ${data.searchedRadiusMiles || radius} miles.${lastSearchUnlocked ? '' : ' Sign in and unlock to see them in full.'}`
         : 'No venues found in that radius/budget — try widening the search.';
-      routeBtn.disabled = currentVenues.length < 2;
+      routeBtn.disabled = currentVenues.length < 2 || !lastSearchUnlocked;
     } catch (e) {
       statusEl.textContent = `Something went wrong reaching the venue search: ${e.message}`;
     } finally {
@@ -627,6 +1014,8 @@
       btn.textContent = 'Find Real Venues';
     }
   };
+
+  initAuth();
 </script>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCk-1_2kd8IOjDDtp29c7IRVbh1DtlK_Y8&callback=initMap" async defer></script>
