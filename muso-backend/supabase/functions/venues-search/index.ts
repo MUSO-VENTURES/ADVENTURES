@@ -1,10 +1,24 @@
 // GET /venues-search?startLat=&startLng=&radiusMiles=25&budget=$$&category=
 //
 // Finds top-rated real venues near a point via the Yelp Fusion API, sorted
-// by rating, filtered to the caller's budget ceiling, and upserts them into
-// the `venues` table (keyed by yelp_id) so they can be wired into routes
-// later. Returns the matched venues either way, even if the upsert fails
-// for some of them, so the discovery UI always gets usable results.
+// with featured (partner_tier 'premium'/'sponsor') venues first and rating
+// descending after that, and upserts them into the `venues` table (keyed by
+// yelp_id, via upsert_yelp_venues() in 0007_gamification.sql) so they can be
+// wired into routes later. Returns the matched venues either way, even if
+// the upsert fails for some of them, so the discovery UI always gets usable
+// results.
+//
+// Gamification gate (0007_gamification.sql): "real" unlocked results only
+// go to signed-in players who are Level 5+ (xp >= 400) or who've spent
+// Adventure Coins to unlock the feature (see unlock-feature). Everyone else
+// — including anonymous callers with no Authorization header — still gets a
+// response with the same shape, just `unlocked: false`, so the client can
+// render a locked teaser instead of a second, separate endpoint.
+//
+// radiusMiles is capped server-side at the caller's unlocked_radius_miles
+// (25 by default; higher after the radius unlock) regardless of what's
+// requested in the query string, so the paywall can't be bypassed by just
+// asking for a bigger radius.
 //
 // Requires a YELP_API_KEY secret (Supabase dashboard > Edge Functions >
 // Secrets, or `supabase secrets set YELP_API_KEY=...`). Get a free key at
@@ -12,9 +26,10 @@
 // generous number of calls/day, no billing account required.
 //
 // startLat/startLng default to the Livermore, CA 94551 pin, same default
-// used by discovery-submit. radiusMiles defaults to 25 and is clamped to
-// Yelp's own hard cap (~24.85 miles / 40,000 meters) regardless of what's
-// requested, since Yelp's API won't search wider than that.
+// used by discovery-submit, for callers that don't share geolocation.
+// radiusMiles defaults to 25 and is clamped to Yelp's own hard cap (~24.85
+// miles / 40,000 meters) regardless of what's requested, since Yelp's API
+// won't search wider than that.
 
 import { handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { getSupabaseAdmin } from "../_shared/supabaseAdmin.ts";
@@ -22,6 +37,8 @@ import { getSupabaseAdmin } from "../_shared/supabaseAdmin.ts";
 const DEFAULT_LAT = 37.6819;
 const DEFAULT_LNG = -121.768;
 const DEFAULT_RADIUS_MILES = 25;
+const FREE_RADIUS_MILES = 25;
+const UNLOCK_LEVEL = 5; // xp >= 400, see profiles.level in 0007_gamification.sql
 const YELP_MAX_RADIUS_METERS = 40000; // ~24.85 miles, Yelp's hard cap
 
 const VALID_BUDGETS: Record<string, string> = {
@@ -29,6 +46,23 @@ const VALID_BUDGETS: Record<string, string> = {
   "$$": "1,2",
   "$$$": "1,2,3",
   "$$$$": "1,2,3,4",
+};
+
+type VenueRow = {
+  yelp_id: string;
+  name: string;
+  category: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  phone: string | null;
+  rating: number | null;
+  rating_count: number | null;
+  source_url: string | null;
+  price: string | null;
+  image_url: string | null;
+  partner_tier: string;
+  featured_position: number | null;
 };
 
 function milesToMeters(miles: number): number {
@@ -51,13 +85,40 @@ Deno.serve(async (req) => {
     );
   }
 
+  const admin = getSupabaseAdmin();
+
+  // ---- Who's calling, and are they unlocked? ----
+  let unlocked = false;
+  let unlockedRadiusMiles = FREE_RADIUS_MILES;
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const jwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (jwt) {
+    const { data: userData } = await admin.auth.getUser(jwt);
+    const userId = userData?.user?.id;
+    if (userId) {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("level, adventure_coins, unlocked_radius_miles, venues_search_unlocked")
+        .eq("id", userId)
+        .maybeSingle();
+      if (profile) {
+        unlocked = profile.venues_search_unlocked === true || (profile.level ?? 1) >= UNLOCK_LEVEL;
+        unlockedRadiusMiles = profile.unlocked_radius_miles ?? FREE_RADIUS_MILES;
+      }
+    }
+  }
+
   const url = new URL(req.url);
   const startLat = Number(url.searchParams.get("startLat")) || DEFAULT_LAT;
-  const startLng = Number(url.searchParams.get("startLng")) | DEFAULT_LNG;
+  const startLng = Number(url.searchParams.get("startLng")) || DEFAULT_LNG;
   const radiusMilesParam = Number(url.searchParams.get("radiusMiles"));
-  const radiusMiles = Number.isFinite(radiusMilesParam) && radiusMilesParam > 0
+  const requestedRadiusMiles = Number.isFinite(radiusMilesParam) && radiusMilesParam > 0
     ? radiusMilesParam
     : DEFAULT_RADIUS_MILES;
+  // Hard server-side cap — can't be bypassed by editing the query string.
+  const radiusMiles = Math.min(requestedRadiusMiles, unlockedRadiusMiles);
   const radiusMeters = Math.min(milesToMeters(radiusMiles), YELP_MAX_RADIUS_METERS);
 
   const budgetParam = url.searchParams.get("budget");
@@ -97,7 +158,7 @@ Deno.serve(async (req) => {
 
   const businesses = Array.isArray(yelpData.businesses) ? yelpData.businesses : [];
 
-  const venues = businesses.map((b: Record<string, unknown>) => {
+  const venues: VenueRow[] = businesses.map((b: Record<string, unknown>) => {
     const categories = Array.isArray(b.categories) ? b.categories as Record<string, unknown>[] : [];
     const coordinates = (b.coordinates ?? {}) as Record<string, unknown>;
     const location = (b.location ?? {}) as Record<string, unknown>;
@@ -117,38 +178,61 @@ Deno.serve(async (req) => {
       rating_count: (b.review_count as number) ?? null,
       source_url: (b.url as string)?.split("?")[0] ?? null,
       price: (b.price as string) ?? null,
+      // Yelp's own business-submitted "hero" photo. Real, current photo of
+      // the actual venue — not a stock image, and not guaranteed to show
+      // patrons (Yelp has no "people" filter), but it's the best available
+      // glamour shot without standing up a separate photo pipeline.
+      image_url: (b.image_url as string) || null,
+      // Defaults for a brand-new venue; overwritten below from the DB for
+      // any venue that already has a curated partner_tier/featured_position.
+      partner_tier: "basic",
+      featured_position: null,
     };
   });
 
-  // Best-effort upsert into `venues` so these can be reused in routes later.
-  // A Yelp hiccup or a missing yelp_id column (pre-migration) shouldn't
-  // block returning results to the caller.
+  // Upsert fresh Yelp data via the DB function, which is written to never
+  // touch partner_tier/featured_position on existing rows — see
+  // upsert_yelp_venues() in 0007_gamification.sql. A Yelp hiccup or a
+  // missing column (pre-migration) shouldn't block returning results.
   try {
-    const admin = getSupabaseAdmin();
-    const rows = venues
-      .filter((v) => v.yelp_id && v.lat != null && v.lng != null)
-      .map((v) => ({
-        yelp_id: v.yelp_id,
-        name: v.name,
-        category: v.category,
-        address: v.address,
-        lat: v.lat,
-        lng: v.lng,
-        phone: v.phone,
-        rating: v.rating,
-        rating_count: v.rating_count,
-        source_url: v.source_url,
-        partner_tier: "basic",
-      }));
+    const rows = venues.filter((v) => v.yelp_id && v.lat != null && v.lng != null);
     if (rows.length) {
-      await admin.from("venues").upsert(rows, { onConflict: "yelp_id" });
+      await admin.rpc("upsert_yelp_venues", { rows: JSON.stringify(rows) });
+
+      const { data: existing } = await admin
+        .from("venues")
+        .select("yelp_id, partner_tier, featured_position")
+        .in("yelp_id", rows.map((r) => r.yelp_id));
+      const byYelpId = new Map((existing ?? []).map((v) => [v.yelp_id as string, v]));
+      for (const v of venues) {
+        const match = byYelpId.get(v.yelp_id);
+        if (match) {
+          v.partner_tier = (match.partner_tier as string) ?? "basic";
+          v.featured_position = (match.featured_position as number | null) ?? null;
+        }
+      }
     }
   } catch {
-    // Non-fatal — results still return below.
+    // Non-fatal — results still return with default partner_tier below.
   }
 
+  // Featured (premium/sponsor) venues get priority inclusion anywhere in
+  // the list, ahead of basic venues — paying/partner venues win a spot in
+  // the route first. Ranked by rating within each group. Until real paid
+  // venues exist this naturally collapses to "everyone's basic, sort by
+  // rating," which is today's fallback behavior.
+  const isFeatured = (v: VenueRow) => v.partner_tier === "premium" || v.partner_tier === "sponsor";
+  const sorted = [...venues].sort((a, b) => {
+    const aFeatured = isFeatured(a) ? 1 : 0;
+    const bFeatured = isFeatured(b) ? 1 : 0;
+    if (aFeatured !== bFeatured) return bFeatured - aFeatured;
+    return (b.rating ?? 0) - (a.rating ?? 0);
+  });
+
   return jsonResponse({
-    venues: venues.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)),
+    venues: sorted,
+    unlocked,
+    unlockedRadiusMiles,
     searchedRadiusMiles: Math.round(radiusMeters / 1609.34 * 10) / 10,
     budget: budgetParam ?? null,
   });
