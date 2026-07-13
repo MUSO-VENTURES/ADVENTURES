@@ -19,7 +19,12 @@
 // regardless of what's requested in the query string, so the paywall can't
 // be bypassed by just asking for a bigger radius. Three tiers
 // (0012_radius_tiers.sql): 30mi free by default, 50mi via unlock-feature's
-// self-serve 'radius' unlock, 100mi "exclusive" tier via manual grant only.
+// self-serve 'radius' unlock, 100mi "exclusive" tier via manual grant only
+// OR a live, active MUSO Pass+ subscription (0013_muso_pass_subscriptions.sql)
+// — checked fresh on every request from subscription_tier/subscription_status,
+// NEVER written permanently to unlocked_radius_miles, so the 100mi bonus
+// disappears the instant a Pass+ subscription lapses, same as any other
+// subscription-only perk.
 //
 // Requires a YELP_API_KEY secret (Supabase dashboard > Edge Functions >
 // Secrets, or `supabase secrets set YELP_API_KEY=...`). Get a free key at
@@ -83,6 +88,7 @@ const DEFAULT_RADIUS_MILES = 15;
 const FREE_RADIUS_MILES = 30;
 const UNLOCK_LEVEL = 5; // xp >= 400, see profiles.level in 0007_gamification.sql
 const YELP_MAX_RADIUS_METERS = 40000; // ~24.85 miles, Yelp's hard cap
+const PASS_PLUS_RADIUS_MILES = 100; // live-only bonus, see 0013_muso_pass_subscriptions.sql
 
 const VALID_BUDGETS: Record<string, string> = {
   "$": "1",
@@ -143,12 +149,19 @@ Deno.serve(async (req) => {
     if (userId) {
       const { data: profile } = await admin
         .from("profiles")
-        .select("level, adventure_coins, unlocked_radius_miles, venues_search_unlocked")
+        .select("level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, subscription_tier, subscription_status")
         .eq("id", userId)
         .maybeSingle();
       if (profile) {
         unlocked = profile.venues_search_unlocked === true || (profile.level ?? 1) >= UNLOCK_LEVEL;
         unlockedRadiusMiles = profile.unlocked_radius_miles ?? FREE_RADIUS_MILES;
+        // Live-only 100mi bonus for an active Pass+ subscriber — deliberately
+        // NOT persisted to unlocked_radius_miles, so it evaporates the moment
+        // subscription_status stops being 'active' (cancellation, payment
+        // failure, etc.), unlike every permanent unlock above.
+        if (profile.subscription_tier === "pass_plus" && profile.subscription_status === "active") {
+          unlockedRadiusMiles = Math.max(unlockedRadiusMiles, PASS_PLUS_RADIUS_MILES);
+        }
       }
     }
   }
