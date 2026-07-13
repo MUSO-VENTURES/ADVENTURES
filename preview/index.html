@@ -266,6 +266,84 @@
   .unlock-coins-btn{ background:var(--coral); color:#fff; }
   .unlock-coins-btn:disabled{ opacity:0.4; cursor:not-allowed; }
   .unlock-signin-btn{ background:var(--ink); color:#fff; }
+
+  /* ---------- START AN ADVENTURE ---------- */
+  .adventure-section{ max-width:1080px; margin:0 auto; padding:0 6vw 4vh; }
+  .adventure-inner{
+    background:var(--card); border-radius:20px; padding:28px 30px;
+    box-shadow:0 8px 30px rgba(37,33,59,0.08);
+  }
+  .adventure-inner h2{ font-size:1.3rem; margin-bottom:6px; }
+  .adventure-sub{ opacity:0.7; font-size:0.9rem; margin-bottom:18px; }
+  .route-pick-list{ display:flex; flex-direction:column; gap:12px; }
+  .route-pick-card{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--cream); border-radius:14px; padding:16px 18px; flex-wrap:wrap;
+  }
+  .route-pick-card .rp-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1rem; }
+  .route-pick-card .rp-desc{ font-size:0.85rem; opacity:0.7; margin-top:2px; max-width:420px; }
+  .route-pick-card .rp-meta{ font-size:0.78rem; opacity:0.55; margin-top:4px; }
+  .start-adv-btn{
+    background:var(--coral); color:#fff; border:none; padding:10px 20px; border-radius:999px;
+    font-weight:700; font-family:'Fredoka',sans-serif; font-size:0.85rem; cursor:pointer; flex-shrink:0;
+    transition:transform .15s;
+  }
+  .start-adv-btn:hover{ transform:scale(1.03); }
+
+  .itinerary-list{ display:flex; flex-direction:column; gap:10px; }
+  .itinerary-stop{
+    display:flex; align-items:center; gap:14px; background:var(--cream); border-radius:14px;
+    padding:14px 16px; flex-wrap:wrap;
+  }
+  .itinerary-stop.done{ opacity:0.6; }
+  .itinerary-stop.locked{ opacity:0.45; }
+  .itinerary-stop .is-emoji{ font-size:1.6rem; width:36px; text-align:center; flex-shrink:0; }
+  .itinerary-stop .is-body{ flex:1; min-width:160px; }
+  .itinerary-stop .is-name{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.95rem; }
+  .itinerary-stop .is-desc{ font-size:0.8rem; opacity:0.7; margin-top:2px; }
+  .itinerary-stop .is-status{ font-size:0.78rem; font-weight:700; flex-shrink:0; }
+  .checkin-btn{
+    background:var(--deep-teal); color:#fff; border:none; padding:9px 18px; border-radius:999px;
+    font-weight:700; font-family:'Fredoka',sans-serif; font-size:0.82rem; cursor:pointer; flex-shrink:0;
+  }
+  .checkin-btn:disabled{ opacity:0.5; cursor:default; }
+  .adventure-complete-banner{
+    background:linear-gradient(90deg, var(--coral), var(--tangerine)); color:#fff; border-radius:14px;
+    padding:16px 18px; text-align:center; font-family:'Fredoka',sans-serif; font-weight:700; margin-bottom:12px;
+  }
+
+  /* ---------- CELEBRATION MODAL ---------- */
+  .celebration-overlay{
+    position:fixed; inset:0; z-index:2000; background:rgba(37,33,59,0.85);
+    display:flex; align-items:center; justify-content:center; padding:6vw;
+  }
+  .celebration-overlay[hidden]{ display:none; }
+  .celebration-card{
+    background:var(--card); border-radius:24px; max-width:400px; width:100%;
+    padding:38px 32px 30px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.35);
+    animation:celebrate-pop 0.35s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes celebrate-pop{ from{ transform:scale(0.85); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .celebration-emoji{ font-size:3.6rem; margin-bottom:10px; }
+  .celebration-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.3rem; margin-bottom:6px; }
+  .celebration-praise{ font-size:0.92rem; opacity:0.75; margin-bottom:22px; line-height:1.5; }
+  .celebration-actions{ display:flex; flex-direction:column; gap:10px; }
+  .celebration-btn{
+    border:none; border-radius:999px; padding:12px; font-weight:700; font-family:'Fredoka',sans-serif;
+    font-size:0.9rem; cursor:pointer;
+  }
+  .celebration-btn.primary{ background:var(--coral); color:#fff; }
+  .celebration-btn.secondary{ background:rgba(37,33,59,0.08); color:var(--ink); }
+  .celebration-count{ font-size:0.75rem; opacity:0.5; margin-top:14px; }
+
+  /* ---------- TOAST ---------- */
+  .xp-toast{
+    position:fixed; bottom:24px; right:24px; z-index:1900; background:var(--ink); color:#fff;
+    padding:12px 20px; border-radius:14px; font-family:'Fredoka',sans-serif; font-weight:700;
+    font-size:0.85rem; box-shadow:0 8px 24px rgba(0,0,0,0.25); transform:translateY(20px); opacity:0;
+    transition:all .25s; max-width:320px;
+  }
+  .xp-toast.show{ transform:translateY(0); opacity:1; }
 </style>
 </head>
 <body>
@@ -302,6 +380,22 @@
   </div>
 </div>
 
+<div class="celebration-overlay" id="celebration-overlay" hidden>
+  <div class="celebration-card">
+    <div class="celebration-emoji" id="celeb-emoji">🏅</div>
+    <div class="celebration-title" id="celeb-title">Badge Earned!</div>
+    <div class="celebration-praise" id="celeb-praise"></div>
+    <div class="celebration-actions">
+      <button type="button" class="celebration-btn primary" id="celeb-profile-btn" style="display:none;" onclick="goToProfileFromCelebration()">View My Profile &rarr;</button>
+      <button type="button" class="celebration-btn secondary" onclick="shareCurrentBadge()">Share this badge</button>
+      <button type="button" class="celebration-btn secondary" onclick="dismissCelebration()">Nice!</button>
+    </div>
+    <div class="celebration-count" id="celeb-count"></div>
+  </div>
+</div>
+
+<div class="xp-toast" id="xp-toast"></div>
+
 <nav>
   <a class="logo" href="/"><span class="dot"></span>MUSO Adventures</a>
   <a class="back-link" href="/">&larr; Back to main site</a>
@@ -316,6 +410,14 @@
   <h1>Real venues. Real ratings. Real directions.</h1>
   <p>This pulls live, top-rated venues near your chosen radius via Yelp, drops them on an interactive map, and routes you between them with turn-by-turn directions — exactly what MUSO Adventures does under the hood.</p>
 </header>
+
+<section class="adventure-section" id="adventure-section">
+  <div class="adventure-inner">
+    <h2>🎮 Start a MUSO Adventure</h2>
+    <p class="adventure-sub" id="adventure-sub">Sign in above to start your first adventure and begin earning XP, badges, and unlocking your profile.</p>
+    <div id="adventure-body"></div>
+  </div>
+</section>
 
 <div class="controls-bar">
   <div class="control-group">
@@ -388,6 +490,9 @@
   let currentSession = null;   // Supabase auth session, or null if signed out
   let currentProfile = null;   // { level, xp, adventure_coins, unlocked_radius_miles, venues_search_unlocked }
   let lastSearchUnlocked = false; // from the most recent venues-search response
+  let currentBadgeKeys = new Set(); // badge_key set for the signed-in player
+  let activeAdventure = null;  // { adventureId, routeId, route, stops, doneIds } once an adventure is underway
+  let celebrationQueue = [];   // badges waiting to be celebrated, one modal at a time
 
   function xpForLevel(level) { return (level - 1) * 100; }
 
@@ -437,15 +542,31 @@
     const p = currentProfile;
     const level = p?.level ?? 1;
     const coins = p?.adventure_coins ?? 0;
+    const profileLink = currentBadgeKeys.has('first_checkin')
+      ? `<a href="/preview/profile.html" class="buy-coins-btn" style="text-decoration:none; display:inline-block;">My Profile</a>`
+      : `<span class="buy-coins-btn" style="opacity:0.45; cursor:default;" title="Check in at your first adventure stop to unlock your profile">🔒 Profile</span>`;
     el.innerHTML = `
       <div class="account-chip">
         <span class="level-pill">Lv ${level}</span>
         <span class="coin-pill">🪙 ${coins}</span>
-        <a href="/preview/profile.html" class="buy-coins-btn" style="text-decoration:none; display:inline-block;">My Profile</a>
+        ${profileLink}
         <button type="button" class="buy-coins-btn" onclick="openBuyCoins()">Buy Coins</button>
         <span class="signout-link" onclick="signOut()">Sign out</span>
       </div>
     `;
+  }
+
+  // Keeps currentProfile and currentBadgeKeys in sync in one call — used
+  // after sign-in, after any unlock, and after every check-in, since any of
+  // those can change xp/level/coins and/or award a badge.
+  async function refreshProfileAndBadges() {
+    if (!currentSession) { currentProfile = null; currentBadgeKeys = new Set(); return; }
+    currentProfile = await fetchOrCreateProfile(currentSession.user.id, currentSession.user.email);
+    const { data } = await supabaseClient
+      .from('profile_badges')
+      .select('badge_key')
+      .eq('profile_id', currentSession.user.id);
+    currentBadgeKeys = new Set((data || []).map(r => r.badge_key));
   }
 
   window.sendMagicLink = async function () {
@@ -466,9 +587,12 @@
     await supabaseClient.auth.signOut();
     currentSession = null;
     currentProfile = null;
+    currentBadgeKeys = new Set();
+    activeAdventure = null;
     renderAccountBar();
     updateLockedVenueUI();
     updateRadiusLockUI();
+    loadAdventureSection();
   };
 
   window.openBuyCoins = async function () {
@@ -516,11 +640,12 @@
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Could not unlock that yet.'); return; }
-      currentProfile = await fetchOrCreateProfile(currentSession.user.id, currentSession.user.email);
+      await refreshProfileAndBadges();
       renderAccountBar();
       updateLockedVenueUI();
       updateRadiusLockUI();
       if (feature === 'venue_search') loadVenues();
+      if (data.newBadge) queueCelebrations([data.newBadge]);
     } catch (e) {
       alert('Could not reach the unlock service: ' + e.message);
     }
@@ -579,32 +704,357 @@
     wrap.appendChild(div);
   }
 
+  // ---------- START AN ADVENTURE ----------
+  function adventureStorageKey(userId) { return `muso_active_adventure_${userId}`; }
+
+  async function loadAdventureSection() {
+    const sub = document.getElementById('adventure-sub');
+    const body = document.getElementById('adventure-body');
+    if (!currentSession) {
+      sub.textContent = 'Sign in above to start your first adventure and begin earning XP, badges, and unlocking your profile.';
+      body.innerHTML = '';
+      activeAdventure = null;
+      return;
+    }
+    sub.textContent = 'Check in at real stops as you go — each one earns XP, and your first check-in unlocks your profile.';
+    body.innerHTML = '<div class="empty-state">Loading…</div>';
+
+    // Resume an in-progress adventure: check this device's local storage
+    // first, then fall back to a DB lookup (covers signing in on a new
+    // device mid-adventure).
+    let resumeId = null;
+    try {
+      const saved = JSON.parse(localStorage.getItem(adventureStorageKey(currentSession.user.id)) || 'null');
+      resumeId = saved?.adventureId || null;
+    } catch (e) {}
+
+    if (!resumeId) {
+      const { data: partyRows } = await supabaseClient.from('party_members').select('party_id').eq('profile_id', currentSession.user.id);
+      const partyIds = (partyRows || []).map(r => r.party_id);
+      if (partyIds.length) {
+        const { data: advRows } = await supabaseClient
+          .from('adventures').select('id').in('party_id', partyIds).eq('status', 'in_progress').limit(1);
+        if (advRows && advRows.length) resumeId = advRows[0].id;
+      }
+    }
+
+    if (resumeId) { await loadItinerary(resumeId); }
+    else { await renderRoutePicker(); }
+  }
+
+  async function renderRoutePicker() {
+    const body = document.getElementById('adventure-body');
+    const { data: routes, error } = await supabaseClient.from('routes').select('id, title, description').order('created_at', { ascending: true });
+    if (error || !routes || !routes.length) {
+      body.innerHTML = '<div class="empty-state">No adventure routes are set up yet — check back soon.</div>';
+      return;
+    }
+    const counts = {};
+    for (const r of routes) {
+      const { count } = await supabaseClient.from('route_stops').select('id', { count: 'exact', head: true }).eq('route_id', r.id);
+      counts[r.id] = count || 0;
+    }
+    body.innerHTML = `<div class="route-pick-list">${routes.map(r => `
+      <div class="route-pick-card">
+        <div>
+          <div class="rp-title">${r.title}</div>
+          <div class="rp-desc">${r.description || ''}</div>
+          <div class="rp-meta">${counts[r.id]} stop${counts[r.id] === 1 ? '' : 's'}</div>
+        </div>
+        <button type="button" class="start-adv-btn" onclick="startAdventure('${r.id}')">Start This Adventure</button>
+      </div>
+    `).join('')}</div>`;
+  }
+
+  window.startAdventure = async function (routeId) {
+    const body = document.getElementById('adventure-body');
+    body.innerHTML = '<div class="empty-state">Starting your adventure…</div>';
+    try {
+      let { data: memberRows } = await supabaseClient.from('party_members').select('party_id').eq('profile_id', currentSession.user.id).limit(1);
+      let partyId = memberRows && memberRows[0] ? memberRows[0].party_id : null;
+      if (!partyId) {
+        const { data: party, error: partyErr } = await supabaseClient
+          .from('parties').insert({ name: `${currentProfile?.display_name || 'Explorer'}'s Crew`, created_by: currentSession.user.id })
+          .select('id').single();
+        if (partyErr) throw partyErr;
+        partyId = party.id;
+        const { error: memberErr } = await supabaseClient
+          .from('party_members').insert({ party_id: partyId, profile_id: currentSession.user.id, role: 'owner' });
+        if (memberErr) throw memberErr;
+      }
+
+      const { count: stopCount } = await supabaseClient.from('route_stops').select('id', { count: 'exact', head: true }).eq('route_id', routeId);
+      const { data: adventure, error: advErr } = await supabaseClient
+        .from('adventures').insert({ party_id: partyId, route_id: routeId, stop_count: stopCount || 0 })
+        .select('id').single();
+      if (advErr) throw advErr;
+
+      try { localStorage.setItem(adventureStorageKey(currentSession.user.id), JSON.stringify({ adventureId: adventure.id })); } catch (e) {}
+
+      await loadItinerary(adventure.id);
+    } catch (e) {
+      body.innerHTML = `<div class="empty-state">Couldn't start that adventure: ${e.message}</div>`;
+    }
+  };
+
+  async function loadItinerary(adventureId) {
+    const body = document.getElementById('adventure-body');
+    body.innerHTML = '<div class="empty-state">Loading your itinerary…</div>';
+
+    const { data: adv } = await supabaseClient.from('adventures').select('id, route_id, status').eq('id', adventureId).maybeSingle();
+    if (!adv) {
+      try { localStorage.removeItem(adventureStorageKey(currentSession.user.id)); } catch (e) {}
+      await renderRoutePicker();
+      return;
+    }
+
+    const token = await getAccessToken();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/route-detail?routeId=${adv.route_id}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
+    });
+    const routeData = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="empty-state">Couldn't load the itinerary: ${routeData.error || res.statusText}</div>`;
+      return;
+    }
+
+    const { data: checkIns } = await supabaseClient.from('check_ins').select('route_stop_id').eq('adventure_id', adventureId);
+    const doneIds = new Set((checkIns || []).map(c => c.route_stop_id));
+
+    activeAdventure = { adventureId, routeId: adv.route_id, route: routeData.route, stops: routeData.stops, doneIds };
+    renderItinerary();
+  }
+
+  function renderItinerary() {
+    const body = document.getElementById('adventure-body');
+    if (!activeAdventure) return;
+    const { route, stops, doneIds } = activeAdventure;
+    const firstIncompleteIdx = stops.findIndex(s => !doneIds.has(s.id));
+    const allDone = firstIncompleteIdx === -1;
+
+    const rows = stops.map((s, i) => {
+      const isDone = doneIds.has(s.id);
+      const isCurrent = i === firstIncompleteIdx;
+      const locked = !isDone && !isCurrent;
+      let status;
+      if (isDone) status = `<span class="is-status" style="color:var(--deep-teal);">✓ Checked in</span>`;
+      else if (isCurrent) status = `<button type="button" class="checkin-btn" onclick="checkInStop('${s.id}')">I'm here — Check in</button>`;
+      else status = `<span class="is-status" style="opacity:0.5;">🔒 Locked</span>`;
+      return `
+        <div class="itinerary-stop ${isDone ? 'done' : ''} ${locked ? 'locked' : ''}">
+          <div class="is-emoji">${s.emoji || '📍'}</div>
+          <div class="is-body">
+            <div class="is-name">${i + 1}. ${s.name}</div>
+            <div class="is-desc">${s.description || ''}</div>
+          </div>
+          ${status}
+        </div>
+      `;
+    }).join('');
+
+    body.innerHTML = `
+      ${allDone ? `
+        <div class="adventure-complete-banner">🏁 Adventure complete! Great work.</div>
+        <div style="text-align:center; margin-bottom:16px;"><button type="button" class="start-adv-btn" onclick="clearActiveAdventure()">Start Another Adventure</button></div>
+      ` : ''}
+      <div style="font-family:'Fredoka',sans-serif; font-weight:700; margin-bottom:10px;">${route.title}</div>
+      <div class="itinerary-list">${rows}</div>
+    `;
+  }
+
+  window.clearActiveAdventure = function () {
+    try { localStorage.removeItem(adventureStorageKey(currentSession.user.id)); } catch (e) {}
+    activeAdventure = null;
+    renderRoutePicker();
+  };
+
+  window.checkInStop = async function (routeStopId) {
+    if (!activeAdventure || !currentSession) return;
+    const token = await getAccessToken();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ adventureId: activeAdventure.adventureId, routeStopId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Could not check in.'); return; }
+
+      activeAdventure.doneIds.add(routeStopId);
+      renderItinerary();
+
+      await refreshProfileAndBadges();
+      renderAccountBar();
+      updateLockedVenueUI();
+      updateRadiusLockUI();
+
+      const progress = data.progress || {};
+      if (progress.newBadges && progress.newBadges.length) {
+        queueCelebrations(progress.newBadges);
+      } else if (progress.xpGained) {
+        showXpToast(progress.xpGained, progress.leveledUp, progress.newLevel);
+      }
+    } catch (e) {
+      alert('Could not reach the check-in service: ' + e.message);
+    }
+  };
+
+  // ---------- CELEBRATIONS + PRAISE COPY ----------
+  const BADGE_PRAISE = {
+    first_checkin: { title: 'Adventure Begins!', praise: "You just checked in at your very first MUSO stop — your profile is now unlocked. Nice work getting started!" },
+    level_5: { title: 'Level 5!', praise: "You've leveled up to 5 — real venue search just unlocked for you." },
+    level_10: { title: 'Level 10!', praise: "Double digits! You're one of the most active explorers out there." },
+    radius_unlocked: { title: 'Explorer Range Unlocked', praise: "You can now search up to 100 miles out. Go wide." },
+    venue_search_unlocked: { title: 'Venue Hunter Unlocked', praise: "Real, live venue results are all yours now." },
+    theme_unlocked: { title: 'Style Unlocked', praise: "You unlocked your first visual theme — make it yours." },
+    adventure_completed: { title: 'Route Complete!', praise: "You checked in at every stop on this adventure. That's the whole thing — well played." },
+  };
+
+  function queueCelebrations(badges) {
+    const wasEmpty = celebrationQueue.length === 0;
+    celebrationQueue.push(...badges);
+    if (wasEmpty) showNextCelebration();
+  }
+
+  function showNextCelebration() {
+    const overlay = document.getElementById('celebration-overlay');
+    if (!celebrationQueue.length) { overlay.setAttribute('hidden', ''); return; }
+    const badge = celebrationQueue[0];
+    const copy = BADGE_PRAISE[badge.key] || { title: badge.name, praise: badge.description };
+    document.getElementById('celeb-emoji').textContent = badge.emoji || '🏅';
+    document.getElementById('celeb-title').textContent = copy.title;
+    document.getElementById('celeb-praise').textContent = copy.praise;
+    document.getElementById('celeb-count').textContent = celebrationQueue.length > 1 ? `+${celebrationQueue.length - 1} more new badge${celebrationQueue.length > 2 ? 's' : ''} waiting` : '';
+    document.getElementById('celeb-profile-btn').style.display = badge.key === 'first_checkin' ? 'block' : 'none';
+    overlay.removeAttribute('hidden');
+    window._currentCelebrationBadge = badge;
+  }
+
+  window.dismissCelebration = function () {
+    celebrationQueue.shift();
+    showNextCelebration();
+  };
+
+  window.goToProfileFromCelebration = function () {
+    window.location.href = '/preview/profile.html';
+  };
+
+  function showToast(text) {
+    const toast = document.getElementById('xp-toast');
+    toast.textContent = text;
+    toast.classList.add('show');
+    clearTimeout(window._xpToastTimer);
+    window._xpToastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  function showXpToast(xpGained, leveledUp, newLevel) {
+    showToast(leveledUp ? `🎉 +${xpGained} XP — Level Up! Now Level ${newLevel}` : `+${xpGained} XP`);
+  }
+
+  // ---------- BADGE SHARE IMAGE ----------
+  function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = (text || '').split(' ');
+    let line = '';
+    let curY = y;
+    for (let n = 0; n < words.length; n++) {
+      const test = line + words[n] + ' ';
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, curY);
+        line = words[n] + ' ';
+        curY += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    ctx.fillText(line, x, curY);
+  }
+
+  function drawBadgeCanvas(badge, displayName) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080; canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+    grad.addColorStop(0, '#ff6b6b'); grad.addColorStop(0.5, '#ffa94d'); grad.addColorStop(1, '#5f4b8b');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 1080, 1080);
+
+    ctx.textAlign = 'center';
+    ctx.font = '260px sans-serif';
+    ctx.fillText(badge.emoji || '🏅', 540, 480);
+
+    ctx.fillStyle = '#fff8f0';
+    ctx.font = '700 64px Fredoka, sans-serif';
+    wrapCanvasText(ctx, badge.name, 540, 620, 900, 70);
+
+    ctx.font = '400 34px "Space Grotesk", sans-serif';
+    ctx.globalAlpha = 0.9;
+    wrapCanvasText(ctx, badge.description || '', 540, 720, 800, 44);
+    ctx.globalAlpha = 1;
+
+    ctx.font = '700 30px Fredoka, sans-serif';
+    ctx.fillText(`${displayName || 'An Explorer'} · MUSO Adventures`, 540, 990);
+
+    return canvas;
+  }
+
+  window.shareCurrentBadge = async function () {
+    const badge = window._currentCelebrationBadge;
+    if (!badge) return;
+    const canvas = drawBadgeCanvas(badge, currentProfile?.display_name);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const fileName = `muso-badge-${badge.key}.png`;
+      const file = new File([blob], fileName, { type: 'image/png' });
+      const caption = `I just earned the "${badge.name}" badge on MUSO Adventures! ${badge.emoji || ''}`;
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: badge.name, text: caption }); return; }
+        catch (e) { /* cancelled — fall through to download */ }
+      }
+      if (navigator.share) {
+        try { await navigator.share({ title: badge.name, text: caption }); return; }
+        catch (e) {}
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      try { await navigator.clipboard.writeText(caption); alert('Badge image downloaded and caption copied — paste it into your post!'); }
+      catch (e) { alert('Badge image downloaded — share it with the caption: ' + caption); }
+    }, 'image/png');
+  };
+
   async function initAuth() {
     if (!supabaseClient) { renderAccountBar(); return; }
     const { data: { session } } = await supabaseClient.auth.getSession();
     currentSession = session;
-    if (currentSession) {
-      currentProfile = await fetchOrCreateProfile(currentSession.user.id, currentSession.user.email);
-    }
+    await refreshProfileAndBadges();
     renderAccountBar();
     updateRadiusLockUI();
+    loadAdventureSection();
 
     supabaseClient.auth.onAuthStateChange(async (_event, session) => {
       currentSession = session;
-      currentProfile = session ? await fetchOrCreateProfile(session.user.id, session.user.email) : null;
+      await refreshProfileAndBadges();
       renderAccountBar();
       updateLockedVenueUI();
       updateRadiusLockUI();
+      loadAdventureSection();
     });
 
     if (new URLSearchParams(window.location.search).get('checkout') === 'success' && currentSession) {
       // Give the Stripe webhook a moment to land before refreshing the balance.
       setTimeout(async () => {
-        currentProfile = await fetchOrCreateProfile(currentSession.user.id, currentSession.user.email);
+        await refreshProfileAndBadges();
         renderAccountBar();
         updateLockedVenueUI();
         updateRadiusLockUI();
       }, 2500);
+    }
+
+    if (new URLSearchParams(window.location.search).get('locked') === 'profile') {
+      setTimeout(() => showToast('🔒 Check in at your first adventure stop to unlock your profile!'), 600);
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
     }
   }
 
