@@ -535,11 +535,17 @@
     return data?.session?.access_token ?? null;
   }
 
+  // Includes birth_date/age_confirmed_at/disclaimer_accepted_at (added in
+  // 0004_venue_search_and_age_gate.sql, previously unused on this page) so
+  // a signed-in player who already completed the gate once never has to
+  // re-confirm their age on a later login — see applyGateStateFromProfile().
+  const PROFILE_COLUMNS = 'id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count, birth_date, age_confirmed_at, disclaimer_accepted_at';
+
   async function fetchOrCreateProfile(userId, email) {
     if (!supabaseClient) return null;
     const { data: existing } = await supabaseClient
       .from('profiles')
-      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count')
+      .select(PROFILE_COLUMNS)
       .eq('id', userId)
       .maybeSingle();
     if (existing) return existing;
@@ -550,7 +556,7 @@
     const { data: created, error } = await supabaseClient
       .from('profiles')
       .insert({ id: userId, display_name: displayName })
-      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count')
+      .select(PROFILE_COLUMNS)
       .single();
     if (error) { console.warn('Could not create profile:', error.message); return null; }
     return created;
@@ -1116,6 +1122,7 @@
     currentSession = session;
     await refreshProfileAndBadges();
     renderAccountBar();
+    await applyGateStateFromProfile();
     updateRadiusLockUI();
     loadAdventureSection();
 
@@ -1123,6 +1130,7 @@
       currentSession = session;
       await refreshProfileAndBadges();
       renderAccountBar();
+      await applyGateStateFromProfile();
       updateLockedVenueUI();
       updateRadiusLockUI();
       loadAdventureSection();
@@ -1207,6 +1215,48 @@
   birthdateInput.addEventListener('change', checkGateState);
   document.getElementById('gate-disclaimer-check').addEventListener('change', checkGateState);
 
+  // Called after every profile refresh (sign-in, auth state change). A
+  // signed-in account that already has age_confirmed_at on file (see
+  // 0004_venue_search_and_age_gate.sql) never needs the gate again — that's
+  // the whole point of tying it to the account instead of just this
+  // browser's localStorage. If the account has no age on file yet but this
+  // browser already passed the gate anonymously (e.g. right before signing
+  // in), silently sync that local record up to the profile instead of
+  // asking a second time. Otherwise, the gate stays up — this account
+  // still needs to complete it at least once.
+  async function applyGateStateFromProfile(){
+    if (!currentSession || !currentProfile || !supabaseClient) return;
+    const overlay = document.getElementById('gate-overlay');
+
+    if (currentProfile.age_confirmed_at) {
+      overlay.setAttribute('hidden', '');
+      return;
+    }
+
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(GATE_STORAGE_KEY) || 'null'); } catch (e) {}
+
+    if (saved && saved.disclaimerAccepted && saved.birthDate) {
+      try {
+        await supabaseClient
+          .from('profiles')
+          .update({
+            birth_date: saved.birthDate,
+            age_confirmed_at: new Date().toISOString(),
+            disclaimer_accepted_at: new Date().toISOString(),
+          })
+          .eq('id', currentSession.user.id);
+        currentProfile.birth_date = saved.birthDate;
+        currentProfile.age_confirmed_at = new Date().toISOString();
+      } catch (e) {}
+      overlay.setAttribute('hidden', '');
+      return;
+    }
+
+    // Neither the account nor this browser has confirmed age yet.
+    overlay.removeAttribute('hidden');
+  }
+
   window.attemptEnterSite = function(){
     const birthVal = birthdateInput.value;
     const age = calculateAgeClient(birthVal);
@@ -1234,6 +1284,27 @@
     } catch (e) {}
 
     document.getElementById('gate-overlay').setAttribute('hidden', '');
+
+    // Signed-in players: save straight to their account so this never has
+    // to be asked again on any future login/device — see
+    // applyGateStateFromProfile(), which is what checks this on the way in.
+    if (currentSession && supabaseClient) {
+      supabaseClient
+        .from('profiles')
+        .update({
+          birth_date: birthVal,
+          age_confirmed_at: new Date().toISOString(),
+          disclaimer_accepted_at: new Date().toISOString(),
+        })
+        .eq('id', currentSession.user.id)
+        .then(() => {
+          if (currentProfile) {
+            currentProfile.birth_date = birthVal;
+            currentProfile.age_confirmed_at = new Date().toISOString();
+          }
+        })
+        .catch(() => {});
+    }
 
     if (SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
       fetch(`${SUPABASE_URL}/functions/v1/gate-capture`, {
