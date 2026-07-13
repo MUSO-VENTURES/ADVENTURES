@@ -10,6 +10,13 @@
 // only check in for your own party's adventure). The venue lookup + email
 // send happens with the service-role client, since venue_contacts isn't
 // something players should be able to read directly.
+//
+// v10 addition: every successful check-in also awards real xp and, where
+// it applies, one or more badges (first-ever check-in, a level milestone,
+// finishing the whole route) via award_xp()/award_badge() — the same
+// SECURITY DEFINER functions from 0010_badges_and_adventures.sql that back
+// every other coin/xp mutation in this schema. The response's `progress`
+// field carries whatever's new so the client can show a celebration.
 
 import { handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { getSupabaseAdmin, getSupabaseAsUser } from "../_shared/supabaseAdmin.ts";
@@ -20,6 +27,17 @@ import {
   type VenueContactRow,
 } from "../_shared/nextStopNotification.ts";
 import { sendEmail, sendSms } from "../_shared/notify.ts";
+
+const CHECKIN_XP = 50;
+
+type Badge = { key: string; name: string; description: string; emoji: string };
+type Progress = {
+  xpGained: number;
+  oldLevel?: number;
+  newLevel?: number;
+  leveledUp: boolean;
+  newBadges: Badge[];
+};
 
 Deno.serve(async (req) => {
   const preflight = handleOptions(req);
@@ -83,8 +101,29 @@ Deno.serve(async (req) => {
   }
 
   // From here on, use the admin client — we need to read venue_contacts and
-  // party/route info that a player shouldn't have direct table access.
+  // party/route info that a player shouldn't have direct table access to.
   const admin = getSupabaseAdmin();
+
+  // 2. Progress: xp for checking in, plus whatever badges this check-in
+  //    just earned. This runs regardless of how the venue-notification step
+  //    below goes — checking in is the player-facing win, the notification
+  //    email is a side effect and shouldn't gate it.
+  const [{ count: totalCheckins }, xpResultRes] = await Promise.all([
+    admin.from("check_ins").select("id", { count: "exact", head: true }).eq("checked_in_by", userId),
+    admin.rpc("award_xp", { p_profile_id: userId, p_amount: CHECKIN_XP }),
+  ]);
+
+  const xpResult = (xpResultRes.data ?? {}) as {
+    oldLevel?: number;
+    newLevel?: number;
+    leveledUp?: boolean;
+  };
+  const isFirstCheckin = (totalCheckins ?? 0) === 1;
+
+  const badgeKeysToAward: string[] = [];
+  if (isFirstCheckin) badgeKeysToAward.push("first_checkin");
+  if (xpResult.leveledUp && (xpResult.newLevel ?? 0) >= 5) badgeKeysToAward.push("level_5");
+  if (xpResult.leveledUp && (xpResult.newLevel ?? 0) >= 10) badgeKeysToAward.push("level_10");
 
   const { data: currentStop, error: stopErr } = await admin
     .from("route_stops")
@@ -92,9 +131,47 @@ Deno.serve(async (req) => {
     .eq("id", routeStopId)
     .single();
 
+  // If this check-in just finished every stop on the route, mark the
+  // adventure completed and award the route-complete badge.
+  if (!stopErr && currentStop) {
+    const [{ count: stopCount }, { count: doneCount }] = await Promise.all([
+      admin.from("route_stops").select("id", { count: "exact", head: true }).eq("route_id", currentStop.route_id),
+      admin.from("check_ins").select("id", { count: "exact", head: true }).eq("adventure_id", adventureId),
+    ]);
+
+    if ((stopCount ?? 0) > 0 && (doneCount ?? 0) >= (stopCount ?? 0)) {
+      badgeKeysToAward.push("adventure_completed");
+      await admin
+        .from("adventures")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", adventureId);
+    }
+  }
+
+  const newBadges: Badge[] = [];
+  for (const key of badgeKeysToAward) {
+    const { data: awardedNew } = await admin.rpc("award_badge", { p_profile_id: userId, p_badge_key: key });
+    if (awardedNew) {
+      const { data: badgeRow } = await admin
+        .from("badges")
+        .select("key, name, description, emoji")
+        .eq("key", key)
+        .single();
+      if (badgeRow) newBadges.push(badgeRow as Badge);
+    }
+  }
+
+  const progress: Progress = {
+    xpGained: CHECKIN_XP,
+    oldLevel: xpResult.oldLevel,
+    newLevel: xpResult.newLevel,
+    leveledUp: !!xpResult.leveledUp,
+    newBadges,
+  };
+
   if (stopErr || !currentStop) {
     // The check-in itself succeeded; the notification step is best-effort.
-    return jsonResponse({ checkIn, notification: { shouldNotify: false, reason: "stop_not_found" } });
+    return jsonResponse({ checkIn, progress, notification: { shouldNotify: false, reason: "stop_not_found" } });
   }
 
   const { data: adventure } = await admin
@@ -148,7 +225,7 @@ Deno.serve(async (req) => {
         status: "skipped_no_contact",
       });
     }
-    return jsonResponse({ checkIn, notification: { shouldNotify: false, reason: plan.reason } });
+    return jsonResponse({ checkIn, progress, notification: { shouldNotify: false, reason: plan.reason } });
   }
 
   const { data: venue } = await admin
@@ -199,6 +276,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({
       checkIn,
+      progress,
       notification: { shouldNotify: true, sentTo: venue?.name, channel },
     });
   } catch (sendErr) {
@@ -211,6 +289,7 @@ Deno.serve(async (req) => {
     // secondary feature and shouldn't block the player's progress.
     return jsonResponse({
       checkIn,
+      progress,
       notification: { shouldNotify: true, sent: false, error: (sendErr as Error).message },
     });
   }
