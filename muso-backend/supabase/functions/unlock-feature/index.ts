@@ -25,6 +25,15 @@
 // 0007_gamification.sql and 0008_themes.sql) — so this function is the
 // single, auditable code path that can ever move a player's coin balance,
 // unlock flags, or active theme.
+//
+// v10 addition: every successful unlock also awards the matching badge via
+// award_badge() (0010_badges_and_adventures.sql). Awarding is idempotent,
+// so it's called unconditionally on every success path, including the
+// "already unlocked" no-op branches — that retroactively gives long-time
+// players the badge for progress they made before badges existed, and is a
+// no-op (no celebration) for anyone who already has it. The response's
+// `newBadge` field is only set when the award was actually new, so the
+// client only pops a celebration the first time.
 
 import { handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { getSupabaseAdmin } from "../_shared/supabaseAdmin.ts";
@@ -33,6 +42,23 @@ const UNLOCK_LEVEL = 5; // xp >= 400
 const VENUE_SEARCH_COST = 250;
 const RADIUS_UNLOCK_COST = 150;
 const RADIUS_UNLOCK_MILES = 100;
+
+type Badge = { key: string; name: string; description: string; emoji: string };
+
+async function awardBadge(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  profileId: string,
+  key: string,
+): Promise<Badge | null> {
+  const { data: awardedNew } = await admin.rpc("award_badge", { p_profile_id: profileId, p_badge_key: key });
+  if (!awardedNew) return null;
+  const { data: badgeRow } = await admin
+    .from("badges")
+    .select("key, name, description, emoji")
+    .eq("key", key)
+    .single();
+  return (badgeRow as Badge) ?? null;
+}
 
 Deno.serve(async (req) => {
   const preflight = handleOptions(req);
@@ -72,12 +98,15 @@ Deno.serve(async (req) => {
     if (!themeId) {
       return jsonResponse({ error: "themeId is required for feature 'theme'" }, 400);
     }
-    const rpcName = body.action === "activate" ? "activate_theme" : "unlock_theme";
+    const action = body.action === "activate" ? "activate" : "unlock";
+    const rpcName = action === "activate" ? "activate_theme" : "unlock_theme";
 
     const { data, error } = await admin.rpc(rpcName, { p_profile_id: userId, p_theme_id: themeId });
     if (error) return jsonResponse({ error: error.message }, 400);
     if (!data?.ok) return jsonResponse({ error: data?.error ?? "Could not update theme." }, 402);
-    return jsonResponse({ ok: true, ...data });
+
+    const newBadge = action === "unlock" ? await awardBadge(admin, userId, "theme_unlocked") : null;
+    return jsonResponse({ ok: true, ...data, newBadge });
   }
 
   const { data: profile, error: profileErr } = await admin
@@ -92,7 +121,8 @@ Deno.serve(async (req) => {
 
   if (feature === "venue_search") {
     if (profile.venues_search_unlocked) {
-      return jsonResponse({ ok: true, alreadyUnlocked: true, unlocked: true });
+      const newBadge = await awardBadge(admin, userId, "venue_search_unlocked");
+      return jsonResponse({ ok: true, alreadyUnlocked: true, unlocked: true, newBadge });
     }
 
     if ((profile.level ?? 1) >= UNLOCK_LEVEL) {
@@ -101,7 +131,8 @@ Deno.serve(async (req) => {
         .update({ venues_search_unlocked: true })
         .eq("id", userId);
       if (error) return jsonResponse({ error: error.message }, 400);
-      return jsonResponse({ ok: true, unlocked: true, method: "level" });
+      const newBadge = await awardBadge(admin, userId, "venue_search_unlocked");
+      return jsonResponse({ ok: true, unlocked: true, method: "level", newBadge });
     }
 
     const { data: success, error } = await admin.rpc("debit_coins", {
@@ -125,15 +156,18 @@ Deno.serve(async (req) => {
       .eq("id", userId);
     if (flagErr) return jsonResponse({ error: flagErr.message }, 400);
 
-    return jsonResponse({ ok: true, unlocked: true, method: "coins", spent: VENUE_SEARCH_COST });
+    const newBadge = await awardBadge(admin, userId, "venue_search_unlocked");
+    return jsonResponse({ ok: true, unlocked: true, method: "coins", spent: VENUE_SEARCH_COST, newBadge });
   }
 
   // feature === "radius"
   if ((profile.unlocked_radius_miles ?? 25) >= RADIUS_UNLOCK_MILES) {
+    const newBadge = await awardBadge(admin, userId, "radius_unlocked");
     return jsonResponse({
       ok: true,
       alreadyUnlocked: true,
       unlockedRadiusMiles: profile.unlocked_radius_miles,
+      newBadge,
     });
   }
 
@@ -158,9 +192,11 @@ Deno.serve(async (req) => {
     .eq("id", userId);
   if (radiusErr) return jsonResponse({ error: radiusErr.message }, 400);
 
+  const newBadge = await awardBadge(admin, userId, "radius_unlocked");
   return jsonResponse({
     ok: true,
     unlockedRadiusMiles: RADIUS_UNLOCK_MILES,
     spent: RADIUS_UNLOCK_COST,
+    newBadge,
   });
 });
