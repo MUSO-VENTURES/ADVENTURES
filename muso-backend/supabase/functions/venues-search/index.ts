@@ -1,4 +1,4 @@
-// GET /venues-search?startLat=&startLng=&radiusMiles=25&budget=$$&category=
+// GET /venues-search?startLat=&startLng=&radiusMiles=15&budget=$$&category=
 //
 // Finds top-rated real venues near a point via the Yelp Fusion API, sorted
 // with featured (partner_tier 'premium'/'sponsor') venues first and rating
@@ -16,9 +16,10 @@
 // render a locked teaser instead of a second, separate endpoint.
 //
 // radiusMiles is capped server-side at the caller's unlocked_radius_miles
-// (25 by default; higher after the radius unlock) regardless of what's
-// requested in the query string, so the paywall can't be bypassed by just
-// asking for a bigger radius.
+// regardless of what's requested in the query string, so the paywall can't
+// be bypassed by just asking for a bigger radius. Three tiers
+// (0012_radius_tiers.sql): 30mi free by default, 50mi via unlock-feature's
+// self-serve 'radius' unlock, 100mi "exclusive" tier via manual grant only.
 //
 // Requires a YELP_API_KEY secret (Supabase dashboard > Edge Functions >
 // Secrets, or `supabase secrets set YELP_API_KEY=...`). Get a free key at
@@ -27,17 +28,59 @@
 //
 // startLat/startLng default to the Livermore, CA 94551 pin, same default
 // used by discovery-submit, for callers that don't share geolocation.
-// radiusMiles defaults to 25 and is clamped to Yelp's own hard cap (~24.85
+// radiusMiles defaults to 15 and is clamped to Yelp's own hard cap (~24.85
 // miles / 40,000 meters) regardless of what's requested, since Yelp's API
 // won't search wider than that.
 
-import { handleOptions, jsonResponse } from "../_shared/cors.ts";
-import { getSupabaseAdmin } from "../_shared/supabaseAdmin.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// Inlined from ../_shared/cors.ts and ../_shared/supabaseAdmin.ts — the
+// Supabase dashboard's single-function editor does not reliably bundle
+// sibling _shared/*.ts files added via its "Add File" UI (reproducibly
+// fails with "Module not found ... _shared/cors.ts" even when the files
+// are present with correct names/content). Inlining sidesteps that bundler
+// bug. The canonical source of truth for these helpers is still
+// muso-backend/supabase/functions/_shared/*.ts — keep both in sync if
+// either changes.
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+};
+
+function handleOptions(req: Request): Response | null {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  return null;
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function getSupabaseAdmin() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!url || !serviceKey) {
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured");
+  }
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 const DEFAULT_LAT = 37.6819;
 const DEFAULT_LNG = -121.768;
-const DEFAULT_RADIUS_MILES = 25;
-const FREE_RADIUS_MILES = 25;
+const DEFAULT_RADIUS_MILES = 15;
+const FREE_RADIUS_MILES = 30;
 const UNLOCK_LEVEL = 5; // xp >= 400, see profiles.level in 0007_gamification.sql
 const YELP_MAX_RADIUS_METERS = 40000; // ~24.85 miles, Yelp's hard cap
 
