@@ -13,8 +13,55 @@
 // `locked` fields let the client render an honest "N more stops available"
 // teaser and drive the unlock-feature('extra_stops') CTA.
 
-import { handleOptions, jsonResponse } from "../_shared/cors.ts";
-import { getSupabaseAsUser } from "../_shared/supabaseAdmin.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// Inlined from ../_shared/cors.ts and ../_shared/supabaseAdmin.ts — the
+// Supabase dashboard's single-function editor does not reliably bundle
+// sibling _shared/*.ts files added via its "Add File" UI (reproducibly
+// fails with "Module not found ... _shared/cors.ts" even when the files
+// are present with correct names/content). Inlining sidesteps that bundler
+// bug. The canonical source of truth for these helpers is still
+// muso-backend/supabase/functions/_shared/*.ts — keep both in sync if
+// either changes.
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+};
+
+function handleOptions(req: Request): Response | null {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  return null;
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function getSupabaseAsUser(req: Request) {
+  const url = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const authHeader = req.headers.get("Authorization");
+
+  if (!url || !anonKey) {
+    throw new Error("SUPABASE_URL / SUPABASE_ANON_KEY not configured");
+  }
+  if (!authHeader) {
+    throw new Error("Missing Authorization header");
+  }
+
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: authHeader } },
+  });
+}
 
 Deno.serve(async (req) => {
   const preflight = handleOptions(req);
