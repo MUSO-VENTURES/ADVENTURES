@@ -128,6 +128,16 @@
   .upcoming-row .when{ margin-left:auto; font-size:0.8rem; opacity:0.6; }
 
   .signout-link{ font-size:0.8rem; opacity:0.6; text-decoration:underline; cursor:pointer; margin-left:auto; }
+
+  .badge-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:14px; margin-top:6px; }
+  .badge-card{ background:var(--cream); border-radius:14px; padding:16px 14px; text-align:center; }
+  .badge-card .b-emoji{ font-size:2.1rem; margin-bottom:6px; }
+  .badge-card .b-name{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.88rem; margin-bottom:2px; }
+  .badge-card .b-date{ font-size:0.72rem; opacity:0.55; margin-bottom:8px; }
+  .badge-share-btn{
+    background:none; border:1.5px solid var(--plum); color:var(--plum); border-radius:999px;
+    padding:4px 12px; font-size:0.72rem; font-weight:700; cursor:pointer; font-family:'Fredoka',sans-serif;
+  }
 </style>
 </head>
 <body>
@@ -181,6 +191,11 @@
     </div>
 
     <div class="card">
+      <h2>Badges earned</h2>
+      <div id="badges-content" class="empty-note">Loading…</div>
+    </div>
+
+    <div class="card">
       <h2>Leaderboard placement</h2>
       <div id="leaderboard-content" class="empty-note">Loading…</div>
     </div>
@@ -214,7 +229,7 @@
 
     <div class="card">
       <h2>Coming soon <span class="soon">in progress</span></h2>
-      <p class="empty-note">Badges earned, adventure companions &amp; friends, preferred venues + your ratings, gifting a friend coins or a choose-your-own adventure, and Pay It Forward are next — this page will grow into those as each is built.</p>
+      <p class="empty-note">Adventure companions &amp; friends, preferred venues + your ratings, gifting a friend coins or a choose-your-own adventure, and Pay It Forward are next — this page will grow into those as each is built.</p>
     </div>
   </div>
 </div>
@@ -333,6 +348,96 @@
     renderHeader();
   });
 
+  // ---------- BADGES ----------
+  function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = (text || '').split(' ');
+    let line = '';
+    let curY = y;
+    for (let n = 0; n < words.length; n++) {
+      const test = line + words[n] + ' ';
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, curY);
+        line = words[n] + ' ';
+        curY += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    ctx.fillText(line, x, curY);
+  }
+
+  function drawBadgeCanvas(badge, displayName) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080; canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+    grad.addColorStop(0, '#ff6b6b'); grad.addColorStop(0.5, '#ffa94d'); grad.addColorStop(1, '#5f4b8b');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 1080, 1080);
+    ctx.textAlign = 'center';
+    ctx.font = '260px sans-serif';
+    ctx.fillText(badge.emoji || '🏅', 540, 480);
+    ctx.fillStyle = '#fff8f0';
+    ctx.font = '700 64px Fredoka, sans-serif';
+    wrapCanvasText(ctx, badge.name, 540, 620, 900, 70);
+    ctx.font = '400 34px "Space Grotesk", sans-serif';
+    ctx.globalAlpha = 0.9;
+    wrapCanvasText(ctx, badge.description || '', 540, 720, 800, 44);
+    ctx.globalAlpha = 1;
+    ctx.font = '700 30px Fredoka, sans-serif';
+    ctx.fillText(`${displayName || 'An Explorer'} · MUSO Adventures`, 540, 990);
+    return canvas;
+  }
+
+  window.shareBadge = async function (key, name, description, emoji) {
+    const badge = { key, name, description, emoji };
+    const canvas = drawBadgeCanvas(badge, profile?.display_name);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const fileName = `muso-badge-${key}.png`;
+      const file = new File([blob], fileName, { type: 'image/png' });
+      const caption = `I just earned the "${name}" badge on MUSO Adventures! ${emoji || ''}`;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: name, text: caption }); return; } catch (e) {}
+      }
+      if (navigator.share) {
+        try { await navigator.share({ title: name, text: caption }); return; } catch (e) {}
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      try { await navigator.clipboard.writeText(caption); alert('Badge image downloaded and caption copied — paste it into your post!'); }
+      catch (e) { alert('Badge image downloaded — share it with the caption: ' + caption); }
+    }, 'image/png');
+  };
+
+  async function renderBadges() {
+    const el = document.getElementById('badges-content');
+    const { data, error } = await supabaseClient
+      .from('profile_badges')
+      .select('badge_key, earned_at, badges(name, description, emoji)')
+      .eq('profile_id', session.user.id)
+      .order('earned_at', { ascending: false });
+    if (error) { el.textContent = "Couldn't load badges yet."; return; }
+    if (!data || !data.length) {
+      el.textContent = 'No badges yet — check in at an adventure stop to earn your first one.';
+      return;
+    }
+    el.innerHTML = `<div class="badge-grid">${data.map(row => {
+      const b = row.badges || {};
+      const nameEsc = (b.name || '').replace(/'/g, "\\'");
+      const descEsc = (b.description || '').replace(/'/g, "\\'");
+      return `
+        <div class="badge-card">
+          <div class="b-emoji">${b.emoji || '🏅'}</div>
+          <div class="b-name">${b.name || row.badge_key}</div>
+          <div class="b-date">${new Date(row.earned_at).toLocaleDateString()}</div>
+          <button type="button" class="badge-share-btn" onclick="shareBadge('${row.badge_key}', '${nameEsc}', '${descEsc}', '${b.emoji || ''}')">Share</button>
+        </div>
+      `;
+    }).join('')}</div>`;
+  }
+
   async function renderLeaderboard() {
     const el = document.getElementById('leaderboard-content');
     const { data, error } = await supabaseClient.rpc('my_leaderboard_rank');
@@ -409,11 +514,28 @@
       document.getElementById('signin-prompt').style.display = 'block';
       return;
     }
+
+    // Gate: this page only opens once the player has checked in at their
+    // first adventure stop — that's what actually unlocks it in-game. If
+    // they land here directly (bookmark, typed URL, old link) without that
+    // badge, send them back to the game to go earn it.
+    const { data: firstCheckinBadge } = await supabaseClient
+      .from('profile_badges')
+      .select('badge_key')
+      .eq('profile_id', session.user.id)
+      .eq('badge_key', 'first_checkin')
+      .maybeSingle();
+    if (!firstCheckinBadge) {
+      window.location.href = '/preview/index.html?locked=profile';
+      return;
+    }
+
     profile = await fetchOrCreateProfile(session.user.id, session.user.email);
     document.getElementById('profile-content').style.display = 'block';
     renderHeader();
     fillEditForm();
     renderUpcoming();
+    renderBadges();
     renderLeaderboard();
     renderPhotobooth();
   }
