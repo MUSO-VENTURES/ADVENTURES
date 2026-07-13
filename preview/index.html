@@ -232,8 +232,20 @@
   .signout-link{ font-size:0.76rem; opacity:0.55; text-decoration:underline; cursor:pointer; }
 
   /* ---------- RADIUS UNLOCK ---------- */
+  .radius-tier-markers{
+    display:flex; gap:4px; margin-top:6px;
+  }
+  .radius-tier-marker{
+    flex:1; text-align:center; padding:3px 4px; border-radius:6px;
+    background:rgba(37,33,59,0.05); opacity:0.4;
+    font-size:0.68rem; font-weight:600; white-space:nowrap;
+    transition:opacity .2s, background .2s;
+  }
+  .radius-tier-marker.reached{
+    opacity:1; background:rgba(95,75,139,0.14); color:var(--plum);
+  }
   .radius-lock-hint{
-    font-size:0.76rem; opacity:0.7; margin-top:4px; display:flex; align-items:center; gap:6px;
+    font-size:0.76rem; opacity:0.7; margin-top:6px; display:flex; align-items:center; gap:6px;
   }
   .radius-unlock-btn{
     background:none; border:1.5px solid var(--plum); color:var(--plum); border-radius:999px;
@@ -443,11 +455,16 @@
   <div class="control-group">
     <label>Search radius</label>
     <div class="radius-row">
-      <input type="range" id="radius-slider" min="1" max="25" value="15">
+      <input type="range" id="radius-slider" min="1" max="30" value="15">
       <span id="radius-value">15 mi</span>
     </div>
+    <div class="radius-tier-markers" id="radius-tier-markers">
+      <div class="radius-tier-marker reached" data-tier="free">≤30mi Free</div>
+      <div class="radius-tier-marker" data-tier="unlock">🔓 ≤50mi</div>
+      <div class="radius-tier-marker" data-tier="exclusive">⭐ ≤100mi</div>
+    </div>
     <div class="radius-lock-hint" id="radius-lock-hint" hidden>
-      🔒 Unlocks up to 100 mi — <button type="button" class="radius-unlock-btn" onclick="unlockFeature('radius')">150 coins</button>
+      🔒 Unlocks up to 50 mi — <button type="button" class="radius-unlock-btn" onclick="unlockFeature('radius')">150 coins</button>
     </div>
   </div>
   <div class="control-group">
@@ -495,8 +512,9 @@
   const UNLOCK_LEVEL = 5;              // must match unlock-feature edge function
   const VENUE_SEARCH_COST = 250;
   const RADIUS_UNLOCK_COST = 150;
-  const RADIUS_UNLOCK_MILES = 100;
-  const FREE_RADIUS_MILES = 25;
+  const RADIUS_UNLOCK_MILES = 50;      // self-serve unlock cap (coins/level)
+  const RADIUS_EXCLUSIVE_MILES = 100;  // manual-grant-only tier, not purchasable
+  const FREE_RADIUS_MILES = 30;
   const EXTRA_STOPS_LEVEL = 3;         // must match unlock-feature edge function
   const EXTRA_STOPS_COST = 200;
   const FREE_STOP_COUNT = 3;
@@ -668,17 +686,31 @@
   };
 
   function updateRadiusLockUI() {
+    // Three tiers (0012_radius_tiers.sql): 30mi free, 50mi self-serve
+    // unlock, 100mi exclusive (manual grant only — no coin/level path).
     const cap = currentProfile?.unlocked_radius_miles ?? FREE_RADIUS_MILES;
     const slider = document.getElementById('radius-slider');
+    const valueEl = document.getElementById('radius-value');
     const hint = document.getElementById('radius-lock-hint');
-    if (cap >= RADIUS_UNLOCK_MILES) {
-      slider.max = RADIUS_UNLOCK_MILES;
-      hint.hidden = true;
-    } else {
-      slider.max = FREE_RADIUS_MILES;
-      if (Number(slider.value) > FREE_RADIUS_MILES) slider.value = FREE_RADIUS_MILES;
-      hint.hidden = false;
+
+    slider.max = cap;
+    if (Number(slider.value) > cap) {
+      slider.value = cap;
+      valueEl.textContent = slider.value + ' mi';
     }
+
+    // Only the 30->50 step is ever purchasable/earnable here. Once a
+    // player is at 50mi there's nothing left to buy — 100mi is invite-only.
+    hint.hidden = cap >= RADIUS_UNLOCK_MILES;
+
+    const markers = document.querySelectorAll('#radius-tier-markers .radius-tier-marker');
+    markers.forEach(m => {
+      const tier = m.dataset.tier;
+      const reached = tier === 'free'
+        || (tier === 'unlock' && cap >= RADIUS_UNLOCK_MILES)
+        || (tier === 'exclusive' && cap >= RADIUS_EXCLUSIVE_MILES);
+      m.classList.toggle('reached', reached);
+    });
   }
 
   function updateLockedVenueUI() {
@@ -959,7 +991,7 @@
     first_checkin: { title: 'Adventure Begins!', praise: "You just checked in at your very first MUSO stop — your profile is now unlocked. Nice work getting started!" },
     level_5: { title: 'Level 5!', praise: "You've leveled up to 5 — real venue search just unlocked for you." },
     level_10: { title: 'Level 10!', praise: "Double digits! You're one of the most active explorers out there." },
-    radius_unlocked: { title: 'Explorer Range Unlocked', praise: "You can now search up to 100 miles out. Go wide." },
+    radius_unlocked: { title: 'Explorer Range Unlocked', praise: "You can now search up to 50 miles out. Go wide." },
     venue_search_unlocked: { title: 'Venue Hunter Unlocked', praise: "Real, live venue results are all yours now." },
     theme_unlocked: { title: 'Style Unlocked', praise: "You unlocked your first visual theme — make it yours." },
     adventure_completed: { title: 'Route Complete!', praise: "You checked in at every stop on this adventure. That's the whole thing — well played." },
