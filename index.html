@@ -391,7 +391,7 @@
     font-family:'Fredoka',sans-serif; font-weight:700; font-size:1rem;
     color:var(--cream); margin-bottom:12px; display:block;
   }
-  .form-group .form-hint{ font-size:0.82rem; opacity:0.55; margin-bottom:18px; margin-top:-8px; }
+  .form-group .form-hint{ font-size:0.82rem; opacity:0.55; margin-bottom:26px; margin-top:-4px; display:block; }
 
   .pill-group{ display:flex; gap:10px; flex-wrap:wrap; }
   .pill-option{
@@ -1001,7 +1001,7 @@
 
       <div class="form-group">
         <span class="form-label">Search Radius</span>
-        <span class="form-hint">Defaults to 25 miles from Livermore, CA — drag to widen or narrow the search area</span>
+        <span class="form-hint">Defaults to 25 miles from your starting point or current location — drag to widen or narrow the search area</span>
         <div style="display:flex; align-items:center; gap:14px;">
           <input type="range" id="radius-slider" min="1" max="100" value="25" style="flex:1; accent-color:var(--coral);" oninput="document.getElementById('radius-value').textContent = this.value">
           <span id="radius-value" style="font-weight:600; min-width:64px;">25 mi</span>
