@@ -848,8 +848,22 @@
     margin-top:10px;
     text-align:left;
   }
+  .venue-result-photo{
+    width:56px; height:56px; flex:0 0 auto;
+    border-radius:10px;
+    object-fit:cover;
+    background:rgba(37,33,59,0.06);
+  }
+  .venue-result-photo-placeholder{
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.4rem;
+  }
+  .venue-result-info{ min-width:0; flex:1; }
   .venue-result-name{font-weight:600; color:var(--ink);}
-  .venue-result-meta{font-size:0.82rem; opacity:0.65; color:var(--ink);}
+  .venue-result-meta{
+    font-size:0.82rem; opacity:0.65; color:var(--ink);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
   .venue-result-rating{
     font-weight:700; color:var(--deep-teal);
     white-space:nowrap;
@@ -2007,15 +2021,22 @@
         return;
       }
 
-      resultsEl.innerHTML = venues.slice(0, 8).map(v => `
+      resultsEl.innerHTML = venues.slice(0, 8).map(v => {
+        const safeName = (v.name || '').replace(/"/g, '&quot;');
+        const photo = v.image_url
+          ? `<img class="venue-result-photo" src="${v.image_url}" alt="${safeName}" loading="lazy" onerror="this.outerHTML='<div class=&quot;venue-result-photo venue-result-photo-placeholder&quot;>🍽️</div>'">`
+          : `<div class="venue-result-photo venue-result-photo-placeholder">🍽️</div>`;
+        return `
         <div class="venue-result-card">
-          <div>
+          ${photo}
+          <div class="venue-result-info">
             <div class="venue-result-name">${v.name}</div>
             <div class="venue-result-meta">${v.category || ''}${v.address ? ' · ' + v.address : ''}</div>
           </div>
           <div class="venue-result-rating">${v.rating ? '⭐ ' + v.rating : ''}${v.rating_count ? ' (' + v.rating_count + ')' : ''}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     } catch (e) {
       resultsEl.innerHTML = `<p class="venue-status-msg">Something went wrong reaching the venue search: ${e.message}</p>`;
     } finally {
