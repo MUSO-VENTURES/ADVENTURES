@@ -392,6 +392,15 @@
     color:var(--cream); margin-bottom:12px; display:block;
   }
   .form-group .form-hint{ font-size:0.82rem; opacity:0.55; margin-bottom:26px; margin-top:-4px; display:block; }
+  .radius-tier-markers{ display:flex; gap:6px; margin-top:12px; }
+  .radius-tier-marker{
+    flex:1; text-align:center; padding:5px 6px; border-radius:8px;
+    background:rgba(255,248,240,0.05); color:var(--cream);
+    opacity:0.45; font-size:0.72rem; font-weight:600; white-space:nowrap;
+  }
+  .radius-tier-marker.reached{
+    opacity:1; background:rgba(255,107,107,0.16); color:var(--coral);
+  }
 
   .pill-group{ display:flex; gap:10px; flex-wrap:wrap; }
   .pill-option{
@@ -1001,10 +1010,15 @@
 
       <div class="form-group">
         <span class="form-label">Search Radius</span>
-        <span class="form-hint">Defaults to 25 miles from your starting point or current location — drag to widen or narrow the search area</span>
+        <span class="form-hint">Defaults to 15 miles from your starting point or current location — drag to widen or narrow the search area</span>
         <div style="display:flex; align-items:center; gap:14px;">
-          <input type="range" id="radius-slider" min="1" max="100" value="25" style="flex:1; accent-color:var(--coral);" oninput="document.getElementById('radius-value').textContent = this.value">
-          <span id="radius-value" style="font-weight:600; min-width:64px;">25 mi</span>
+          <input type="range" id="radius-slider" min="1" max="30" value="15" style="flex:1; accent-color:var(--coral);" oninput="document.getElementById('radius-value').textContent = this.value">
+          <span id="radius-value" style="font-weight:600; min-width:64px;">15 mi</span>
+        </div>
+        <div class="radius-tier-markers">
+          <div class="radius-tier-marker reached">≤30mi Free</div>
+          <div class="radius-tier-marker">🔓 ≤50mi Unlock</div>
+          <div class="radius-tier-marker">⭐ ≤100mi Exclusive</div>
         </div>
       </div>
 
