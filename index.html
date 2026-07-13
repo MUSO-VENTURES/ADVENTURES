@@ -1408,6 +1408,7 @@
         {emoji:"🎯", label:"Adventurous", key:"adventurous"},
         {emoji:"🎲", label:"Spontaneous", key:"spontaneous"},
         {emoji:"🎭", label:"Cultured", key:"cultured"},
+        {emoji:"🎈", label:"Playful", key:"playful"},
       ]
     },
     2: {
@@ -1440,6 +1441,13 @@
         options:[
           {emoji:"🍷", label:"Fine Dining", key:"cult-dining"},
           {emoji:"👗", label:"Fashion & Flair", key:"cult-fashion"},
+        ]
+      },
+      playful: {
+        title:"Pick your twist",
+        options:[
+          {emoji:"🤹", label:"Silly & Games", key:"play-silly"},
+          {emoji:"🎪", label:"Whimsical", key:"play-whimsical"},
         ]
       }
     },
@@ -1514,6 +1522,20 @@
         {name:"Rooftop Nightcap", desc:"A skyline view to close out the night properly."},
         {name:"Late-Night Stroll", desc:"Walk it off before the night ends."}
       ]},
+      "play-silly": {title:"Recess Energy", stops:[
+        {name:"Mini Golf Course", desc:"Whoever loses buys ice cream, no exceptions."},
+        {name:"Arcade", desc:"Skee-ball, claw machine, the works — bragging rights on the line."},
+        {name:"Bumper Cars or Go-Karts", desc:"A little friendly chaos never hurt anyone."},
+        {name:"Ice Cream Stop", desc:"Two spoons, one sundae, zero regrets."},
+        {name:"Photo Booth Strip", desc:"Make the silliest faces you've got — no do-overs."}
+      ]},
+      "play-whimsical": {title:"The Carnival Effect", stops:[
+        {name:"Carnival Game Booth", desc:"Win something ridiculous neither of you needs."},
+        {name:"Cotton Candy Cart", desc:"Split one — it's basically required."},
+        {name:"Ferris Wheel or Scenic Ride", desc:"A few minutes up top before the night keeps moving."},
+        {name:"Face Painting or Photo Op", desc:"Commit to the bit, whatever it is."},
+        {name:"Late-Night Funnel Cake", desc:"The night's not over until dessert says so."}
+      ]},
       "cult-fashion": {title:"The Runway Night", stops:[
         {name:"Boutique Shopping Stop", desc:"Find one thing nobody expected to love."},
         {name:"Fashion or Trunk Show", desc:"Front row seats to something stylish and local."},
@@ -1554,7 +1576,7 @@
           </div>
         `).join('')}
         <div class="choice-card wildcard" onclick="surpriseMe()">
-          <span class="emoji">🎲</span>
+          <span class="emoji">🎁</span>
           <span class="label">Surprise Me</span>
         </div>
       </div>
