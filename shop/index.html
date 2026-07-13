@@ -160,6 +160,16 @@
   .pass-perks li{ display:flex; align-items:flex-start; gap:8px; line-height:1.4; }
   .pass-perks li .check{ color:var(--deep-teal); font-weight:700; flex-shrink:0; }
   .best-for{ font-size:0.8rem; opacity:0.6; font-style:italic; margin-top:auto; padding-top:6px; }
+  .subscribe-btn{
+    margin-top:4px; width:100%; padding:12px 0; border-radius:999px; border:none;
+    background:var(--plum); color:#fff; font-weight:700; font-family:'Fredoka',sans-serif;
+    font-size:0.95rem; cursor:pointer; transition:background .15s;
+  }
+  .subscribe-btn:hover{ background:#493a70; }
+  .subscribe-btn:disabled{ opacity:0.6; cursor:default; }
+  .subscribe-btn.current{ background:var(--deep-teal); }
+  .manage-sub-link{ font-size:0.85rem; opacity:0.75; cursor:pointer; font-weight:500; text-align:center; }
+  .manage-sub-link:hover{ opacity:1; text-decoration:underline; }
 
   /* ---------- FAQ ---------- */
   .faq-list{ display:flex; flex-direction:column; gap:14px; margin-top:32px; }
@@ -344,6 +354,7 @@
         <li><span class="check">✓</span> 1 visual theme unlocked for you</li>
       </ul>
       <div class="best-for">Best for: casual regulars who play a few times a month.</div>
+      <button type="button" class="subscribe-btn" data-tier="pass" onclick="subscribeToPass(this)">Subscribe</button>
     </div>
     <div class="pass-card plus">
       <div class="pass-name">🎟️ MUSO Pass+</div>
@@ -357,8 +368,10 @@
         <li><span class="check">✓</span> 1 free real-world reward redemption every month</li>
       </ul>
       <div class="best-for">Best for: frequent explorers who want everything unlocked at once.</div>
+      <button type="button" class="subscribe-btn" data-tier="pass_plus" onclick="subscribeToPass(this)">Subscribe</button>
     </div>
   </div>
+  <div id="manage-sub-wrap" style="text-align:center; margin-top:18px;"></div>
 </section>
 
 <!-- ============ FAQ ============ -->
@@ -402,11 +415,27 @@
     : null;
 
   let currentSession = null;
+  // Subscription state for the signed-in profile — fetched separately from
+  // the session itself, since Supabase Auth doesn't carry app-table columns.
+  // Drives whether pass-card buttons say "Subscribe" or "Current plan" and
+  // whether a "Manage subscription" link shows up.
+  let currentProfile = null;
 
   async function getAccessToken() {
     if (!supabaseClient || !currentSession) return null;
     const { data } = await supabaseClient.auth.getSession();
     return data?.session?.access_token ?? null;
+  }
+
+  async function refreshProfile() {
+    currentProfile = null;
+    if (!supabaseClient || !currentSession) return;
+    const { data } = await supabaseClient
+      .from('profiles')
+      .select('subscription_tier, subscription_status')
+      .eq('id', currentSession.user.id)
+      .maybeSingle();
+    currentProfile = data ?? null;
   }
 
   function renderAccountBar() {
@@ -431,6 +460,37 @@
     document.querySelectorAll('.buy-btn').forEach(btn => {
       btn.textContent = currentSession ? 'Buy Now' : 'Sign in to buy';
     });
+    renderPassButtons();
+  }
+
+  function renderPassButtons() {
+    const active = currentSession && currentProfile?.subscription_status === 'active';
+    const activeTier = currentProfile?.subscription_tier;
+    document.querySelectorAll('.subscribe-btn').forEach(btn => {
+      const tier = btn.dataset.tier;
+      btn.classList.remove('current');
+      if (!currentSession) {
+        btn.disabled = false;
+        btn.textContent = 'Sign in to subscribe';
+      } else if (active && tier === activeTier) {
+        btn.disabled = false;
+        btn.textContent = 'Your current plan — manage';
+        btn.classList.add('current');
+      } else if (active) {
+        btn.disabled = false;
+        btn.textContent = 'Switch via manage';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Subscribe';
+      }
+    });
+
+    const wrap = document.getElementById('manage-sub-wrap');
+    if (wrap) {
+      wrap.innerHTML = active
+        ? `<span class="manage-sub-link" onclick="manageSubscription()">Manage or cancel your subscription &rarr;</span>`
+        : '';
+    }
   }
 
   window.sendMagicLink = async function () {
@@ -494,20 +554,92 @@
     }
   };
 
+  window.subscribeToPass = async function (btn) {
+    if (!currentSession) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('signin-email')?.focus();
+      return;
+    }
+    if (currentProfile?.subscription_status === 'active') {
+      // Already subscribed (to this tier or the other one) — send them to
+      // the billing portal instead of starting a second Checkout Session,
+      // matching the subscribe function's own 409 guard.
+      return manageSubscription();
+    }
+    const tier = btn.dataset.tier;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Redirecting…';
+    const token = await getAccessToken();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/subscribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          tier,
+          successUrl: window.location.href.split('?')[0] + '?checkout=success',
+          cancelUrl: window.location.href.split('?')[0] + '?checkout=cancel',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Could not start checkout.');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+      window.location.href = data.url;
+    } catch (e) {
+      alert('Could not reach checkout: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  };
+
+  window.manageSubscription = async function () {
+    const token = await getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ returnUrl: window.location.href.split('?')[0] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Could not open the billing portal.');
+        return;
+      }
+      window.location.href = data.url;
+    } catch (e) {
+      alert('Could not reach the billing portal: ' + e.message);
+    }
+  };
+
   (async function init() {
     renderAccountBar();
     if (!supabaseClient) return;
     const { data: { session } } = await supabaseClient.auth.getSession();
     currentSession = session;
+    await refreshProfile();
     renderAccountBar();
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
       currentSession = session;
+      await refreshProfile();
       renderAccountBar();
     });
     if (new URLSearchParams(window.location.search).get('checkout') === 'success') {
       setTimeout(() => {
         const msg = document.getElementById('signin-msg');
-        if (msg) msg.textContent = 'Purchase complete — coins added to your account!';
+        if (msg) msg.textContent = 'Purchase complete — check your account for new coins or an active subscription!';
       }, 300);
     }
   })();
