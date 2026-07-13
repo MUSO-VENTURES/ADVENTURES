@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MUSO Adventures — Adventure Coins &amp; MUSO Pass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --coral:#ff6b6b;
+    --tangerine:#ffa94d;
+    --teal:#0fb9b1;
+    --deep-teal:#0a7d78;
+    --plum:#5f4b8b;
+    --cream:#fff8f0;
+    --ink:#25213b;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Space Grotesk', sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+  }
+  h1,h2,h3,.display{ font-family:'Fredoka', sans-serif; }
+  a{color:inherit;}
+
+  nav{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 6vw;
+    background:rgba(255,248,240,0.9);
+    backdrop-filter:blur(8px);
+    border-bottom:2px solid rgba(37,33,59,0.06);
+  }
+  .logo{
+    font-family:'Fredoka', sans-serif;
+    font-weight:700;
+    font-size:1.3rem;
+    display:flex; align-items:center; gap:8px;
+    text-decoration:none;
+  }
+  .logo .dot{ width:10px; height:10px; border-radius:50%; background:var(--coral); display:inline-block; }
+  .back-link{ font-size:0.88rem; opacity:0.7; text-decoration:none; font-weight:500; }
+  .back-link:hover{ opacity:1; }
+
+  header.hero{
+    padding:6vh 6vw 3vh; text-align:center; max-width:760px; margin:0 auto;
+  }
+  .eyebrow{
+    display:inline-block; background:var(--ink); color:var(--cream);
+    padding:6px 16px; border-radius:999px; font-size:0.78rem; font-weight:600;
+    letter-spacing:0.06em; text-transform:uppercase; margin-bottom:18px;
+  }
+  header.hero h1{ font-size:clamp(1.8rem,4vw,2.6rem); margin-bottom:12px; }
+  header.hero p{ opacity:0.75; font-size:1.05rem; line-height:1.6; }
+
+  section{ max-width:1100px; margin:0 auto; padding:5vh 6vw; }
+  .section-heading{ text-align:center; margin-bottom:10px; }
+  .section-heading h2{ font-size:1.7rem; margin-bottom:8px; }
+  .section-heading p{ opacity:0.7; font-size:1rem; max-width:640px; margin:0 auto; line-height:1.55; }
+
+  /* ---------- WHAT COINS DO ---------- */
+  .unlock-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:18px;
+    margin-top:36px;
+  }
+  .unlock-card{
+    background:var(--card); border-radius:18px; padding:22px 20px;
+    box-shadow:0 6px 20px rgba(37,33,59,0.08); text-align:center;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .unlock-card .u-emoji{ font-size:2.4rem; }
+  .unlock-card .u-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.02rem; }
+  .unlock-card .u-desc{ font-size:0.86rem; opacity:0.72; line-height:1.45; flex:1; }
+  .u-cost{
+    display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    background:var(--cream); border-radius:999px; padding:6px 14px; font-weight:700;
+    font-family:'Fredoka',sans-serif; font-size:0.85rem; color:var(--deep-teal); margin:0 auto;
+  }
+  .u-cost.subscriber-only{ color:var(--plum); }
+
+  /* ---------- COIN PACKS ---------- */
+  .pack-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:18px;
+    margin-top:36px;
+  }
+  .pack-card{
+    position:relative; background:var(--card); border-radius:20px; padding:28px 18px 22px;
+    box-shadow:0 6px 20px rgba(37,33,59,0.08); text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    border:2px solid transparent; transition:transform .15s;
+  }
+  .pack-card:hover{ transform:translateY(-3px); }
+  .pack-card.featured{ border-color:var(--coral); }
+  .pack-ribbon{
+    position:absolute; top:-12px; left:50%; transform:translateX(-50%);
+    background:var(--coral); color:#fff; font-size:0.68rem; font-weight:700;
+    padding:5px 14px; border-radius:999px; white-space:nowrap;
+    font-family:'Fredoka',sans-serif; letter-spacing:0.02em;
+    box-shadow:0 3px 10px rgba(255,107,107,0.4);
+  }
+  .pack-card .p-coin{ font-size:2.4rem; margin-top:6px; }
+  .pack-card .p-coins{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.25rem; }
+  .pack-card .p-price{ font-size:1.5rem; font-weight:700; color:var(--ink); font-family:'Fredoka',sans-serif; }
+  .p-save{
+    background:rgba(15,185,177,0.14); color:var(--deep-teal); font-weight:700; font-size:0.76rem;
+    padding:3px 10px; border-radius:999px; font-family:'Fredoka',sans-serif;
+  }
+  .p-perCoin{ font-size:0.72rem; opacity:0.55; }
+
+  /* ---------- SUBSCRIPTION ---------- */
+  .pass-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:24px;
+    margin-top:36px;
+  }
+  .pass-card{
+    background:var(--card); border-radius:22px; padding:32px 28px;
+    box-shadow:0 8px 28px rgba(37,33,59,0.1); display:flex; flex-direction:column; gap:14px;
+    border:2px solid transparent;
+  }
+  .pass-card.plus{ border-color:var(--plum); background:linear-gradient(180deg, #ffffff 0%, #f7f4fc 100%); }
+  .pass-card .pass-name{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.3rem; display:flex; align-items:center; gap:8px; }
+  .pass-card .pass-price{ font-size:2rem; font-weight:700; font-family:'Fredoka',sans-serif; }
+  .pass-card .pass-price span{ font-size:0.95rem; font-weight:500; opacity:0.6; }
+  .pass-stipend{
+    display:inline-flex; align-items:center; gap:6px; background:var(--cream); border-radius:999px;
+    padding:8px 16px; font-weight:700; font-family:'Fredoka',sans-serif; font-size:0.92rem; width:fit-content;
+  }
+  .pass-perks{ list-style:none; display:flex; flex-direction:column; gap:10px; font-size:0.9rem; }
+  .pass-perks li{ display:flex; align-items:flex-start; gap:8px; line-height:1.4; }
+  .pass-perks li .check{ color:var(--deep-teal); font-weight:700; flex-shrink:0; }
+  .best-for{ font-size:0.8rem; opacity:0.6; font-style:italic; margin-top:auto; padding-top:6px; }
+
+  /* ---------- FAQ ---------- */
+  .faq-list{ display:flex; flex-direction:column; gap:14px; margin-top:32px; }
+  .faq-item{
+    background:var(--card); border-radius:16px; padding:18px 22px;
+    box-shadow:0 4px 14px rgba(37,33,59,0.06);
+  }
+  .faq-q{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.98rem; margin-bottom:6px; }
+  .faq-a{ font-size:0.88rem; opacity:0.75; line-height:1.5; }
+
+  footer{ padding:6vh 6vw 5vh; text-align:center; }
+  footer p{ opacity:0.55; font-size:0.85rem; max-width:520px; margin:0 auto; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/preview/"><span class="dot"></span>MUSO Adventures</a>
+  <a class="back-link" href="/preview/">&larr; Back to the app</a>
+</nav>
+
+<header class="hero">
+  <span class="eyebrow">Adventure Coins</span>
+  <h1>Coins unlock more adventure.</h1>
+  <p>Coins are how you go further, see more real venues, and unlock fun stuff along the way. Here's exactly what they do, what they cost, and how to get more — no confusing fine print.</p>
+</header>
+
+<!-- ============ WHAT COINS DO ============ -->
+<section id="what-coins-do">
+  <div class="section-heading">
+    <h2>🪙 What can coins actually do?</h2>
+    <p>Every coin cost below is a one-time unlock unless marked "repeatable" — meaning once you unlock it, it's yours for good.</p>
+  </div>
+  <div class="unlock-grid">
+    <div class="unlock-card">
+      <div class="u-emoji">🗺️</div>
+      <div class="u-title">Search Farther</div>
+      <div class="u-desc">See real venues up to 50 miles away instead of the free 30-mile range.</div>
+      <div class="u-cost">🪙 150 coins</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">🧭</div>
+      <div class="u-title">Add More Stops</div>
+      <div class="u-desc">Unlock all 5 stops on your adventure instead of the free 3.</div>
+      <div class="u-cost">🪙 200 coins</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">🔍</div>
+      <div class="u-title">Find Real Venues</div>
+      <div class="u-desc">See real, live venues with photos and directions — not just a locked preview.</div>
+      <div class="u-cost">🪙 250 coins</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">🎨</div>
+      <div class="u-title">New Look</div>
+      <div class="u-desc">Unlock a new visual theme for your app. Collect them all.</div>
+      <div class="u-cost">🪙 100 coins each</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">🔁</div>
+      <div class="u-title">Reroute</div>
+      <div class="u-desc">Not feeling your suggested stops? Get a fresh set. Repeatable.</div>
+      <div class="u-cost">🪙 25 coins</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">⏭️</div>
+      <div class="u-title">Skip a Stop</div>
+      <div class="u-desc">Can't make it to one stop? Skip it and keep your adventure going. Repeatable.</div>
+      <div class="u-cost">🪙 50 coins</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">🎲</div>
+      <div class="u-title">Reroll the Vibe</div>
+      <div class="u-desc">Shuffle your adventure's mood or twist for a different kind of night. Repeatable.</div>
+      <div class="u-cost">🪙 25 coins</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">🎁</div>
+      <div class="u-title">Real Gift Cards</div>
+      <div class="u-desc">Trade coins for real $5 or $10 gift cards to partner venues.</div>
+      <div class="u-cost">🪙 600 / 1,100 coins</div>
+    </div>
+    <div class="unlock-card">
+      <div class="u-emoji">⭐</div>
+      <div class="u-title">100-Mile Exclusive Range</div>
+      <div class="u-desc">The farthest search range there is — a MUSO Pass+ member perk, not for sale with coins.</div>
+      <div class="u-cost subscriber-only">MUSO Pass+ only</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COIN PACKS ============ -->
+<section id="coin-packs">
+  <div class="section-heading">
+    <h2>Buy Adventure Coins</h2>
+    <p>Bigger packs get you more coins for less per coin — the math does the "bulk discount" for you, so just pick what fits your adventure.</p>
+  </div>
+  <div class="pack-grid">
+    <div class="pack-card">
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">50 coins</div>
+      <div class="p-price">$0.99</div>
+      <div class="p-perCoin">Starter pack</div>
+    </div>
+    <div class="pack-card">
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">100 coins</div>
+      <div class="p-price">$1.99</div>
+      <div class="p-perCoin">&nbsp;</div>
+    </div>
+    <div class="pack-card">
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">150 coins</div>
+      <div class="p-price">$2.49</div>
+      <div class="p-save">Save 16%</div>
+    </div>
+    <div class="pack-card">
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">200 coins</div>
+      <div class="p-price">$2.99</div>
+      <div class="p-save">Save 24%</div>
+    </div>
+    <div class="pack-card featured">
+      <div class="pack-ribbon">🔥 Most Popular</div>
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">500 coins</div>
+      <div class="p-price">$6.99</div>
+      <div class="p-save">Save 29%</div>
+    </div>
+    <div class="pack-card">
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">1,000 coins</div>
+      <div class="p-price">$12.99</div>
+      <div class="p-save">Save 34%</div>
+    </div>
+    <div class="pack-card featured">
+      <div class="pack-ribbon">💎 Best Value</div>
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">2,500 coins</div>
+      <div class="p-price">$29.99</div>
+      <div class="p-save">Save 39%</div>
+    </div>
+    <div class="pack-card">
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">5,000 coins</div>
+      <div class="p-price">$54.99</div>
+      <div class="p-save">Save 45%</div>
+    </div>
+    <div class="pack-card">
+      <div class="p-coin">🪙</div>
+      <div class="p-coins">10,000 coins</div>
+      <div class="p-price">$99.99</div>
+      <div class="p-save">Save 50%</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MUSO PASS ============ -->
+<section id="muso-pass">
+  <div class="section-heading">
+    <h2>🎟️ MUSO Pass — for frequent players</h2>
+    <p>If you're playing every week, a monthly Pass gets you more coins than you'd spend buying them one at a time, plus perks that stick around all month.</p>
+  </div>
+  <div class="pass-grid">
+    <div class="pass-card">
+      <div class="pass-name">🎟️ MUSO Pass</div>
+      <div class="pass-price">$7.99 <span>/ month</span></div>
+      <div class="pass-stipend">🪙 750 coins every month</div>
+      <ul class="pass-perks">
+        <li><span class="check">✓</span> 50-mile search range unlocked automatically, all month</li>
+        <li><span class="check">✓</span> 3 free Reroute tokens every month</li>
+        <li><span class="check">✓</span> Exclusive subscriber badge on your profile</li>
+        <li><span class="check">✓</span> 1 visual theme unlocked for you</li>
+      </ul>
+      <div class="best-for">Best for: casual regulars who play a few times a month.</div>
+    </div>
+    <div class="pass-card plus">
+      <div class="pass-name">🎟️ MUSO Pass+</div>
+      <div class="pass-price">$14.99 <span>/ month</span></div>
+      <div class="pass-stipend">🪙 1,800 coins every month</div>
+      <ul class="pass-perks">
+        <li><span class="check">✓</span> Everything in MUSO Pass</li>
+        <li><span class="check">✓</span> All 5 stops unlocked automatically, all month</li>
+        <li><span class="check">✓</span> Real venue search unlocked automatically, all month</li>
+        <li><span class="check">✓</span> Access to the exclusive 100-mile search range</li>
+        <li><span class="check">✓</span> 1 free real-world reward redemption every month</li>
+      </ul>
+      <div class="best-for">Best for: frequent explorers who want everything unlocked at once.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq">
+  <div class="section-heading">
+    <h2>Quick questions</h2>
+  </div>
+  <div class="faq-list">
+    <div class="faq-item">
+      <div class="faq-q">Do coins expire?</div>
+      <div class="faq-a">No — once you have coins, they're yours until you spend them.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Do unlocks expire?</div>
+      <div class="faq-a">One-time unlocks (search range, extra stops, real venue search, themes) are permanent once purchased. MUSO Pass perks last as long as your subscription is active.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What's the difference between buying coins and subscribing?</div>
+      <div class="faq-a">Buying a pack is a one-time top-up you can use however you like. MUSO Pass is a monthly plan that hands you a fresh batch of coins automatically and keeps certain unlocks active the whole time you're subscribed — better value if you play often.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I just play for free?</div>
+      <div class="faq-a">Yes. Every player starts with a free 30-mile range, 3 free stops per adventure, and can reach real venue search for free at Level 5 just by playing. Coins are there if you want to go further, faster.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Prices shown in USD. Adventure Coins and MUSO Pass are used only within MUSO Adventures and have no cash value outside the app.</p>
+</footer>
+
+</body>
+</html>
