@@ -634,31 +634,13 @@
     loadAdventureSection();
   };
 
-  window.openBuyCoins = async function () {
-    if (!currentSession) return;
-    const pack = prompt('Which pack? Type "small" (100 coins, $0.99), "medium" (600 coins, $4.99), or "large" (1500 coins, $9.99).', 'medium');
-    if (!pack || !['small', 'medium', 'large'].includes(pack.trim().toLowerCase())) return;
-    const token = await getAccessToken();
-    try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/buy-coins`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({
-          pack: pack.trim().toLowerCase(),
-          successUrl: window.location.href.split('?')[0] + '?checkout=success',
-          cancelUrl: window.location.href.split('?')[0] + '?checkout=cancel',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Could not start checkout.'); return; }
-      window.location.href = data.url;
-    } catch (e) {
-      alert('Could not reach checkout: ' + e.message);
-    }
+  // Full pack lineup (9-tier bulk-discount ladder) + MUSO Pass subscription
+  // info now lives on the /shop/ page, which has its own sign-in + working
+  // "Buy Now" buttons wired to buy-coins — so the account bar's "Buy Coins"
+  // button just sends players there instead of a plain prompt() offering
+  // only the old 3 packs.
+  window.openBuyCoins = function () {
+    window.location.href = '/shop/';
   };
 
   window.unlockFeature = async function (feature) {
