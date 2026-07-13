@@ -815,6 +815,12 @@
     pointer-events:none;
     cursor:not-allowed;
   }
+  .multiselect-chip.locked{
+    opacity:0.75;
+    filter:grayscale(0.35);
+    pointer-events:none;
+    cursor:not-allowed;
+  }
 
   /* ---------- TOP VENUES RESULTS ---------- */
   .venue-result-card{
@@ -1027,7 +1033,9 @@
             <div class="multiselect-chip" data-value="Comedy" onclick="toggleChip(this)">😂 Comedy</div>
             <div class="multiselect-chip" data-value="Cultured" onclick="toggleChip(this)">🎭 Cultured</div>
             <div class="multiselect-chip" data-value="Oddities & Curiosities" onclick="toggleChip(this)">🔮 Oddities & Curiosities</div>
+            <div class="multiselect-chip" id="smoke-cigar-chip" data-value="Smoke & Cigar" onclick="toggleChip(this)">💨 Smoke & Cigar<span class="age-badge">21+</span></div>
           </div>
+          <p class="form-hint" style="margin-top:10px;">🍕 Got the munchies? Pick <strong>Smoke & Cigar</strong> and we'll automatically pair your route with nearby food &amp; snack stops.</p>
         </div>
 
         <div class="form-group">
@@ -1783,6 +1791,22 @@
         p.removeAttribute('aria-disabled');
       }
     });
+
+    // Smoke & Cigar interest (hookah lounges, cigar shops, smoke shops) is
+    // 21+ only, same threshold and same lock/grey treatment as the adult
+    // content ratings above — self-reported birthdate only, no dispensary
+    // tie-in and no separate ID-verification flow.
+    const smokeChip = document.getElementById('smoke-cigar-chip');
+    if (smokeChip) {
+      const locked = !ageConfirmed;
+      smokeChip.classList.toggle('locked', locked);
+      if (locked) {
+        smokeChip.setAttribute('aria-disabled', 'true');
+        smokeChip.classList.remove('selected');
+      } else {
+        smokeChip.removeAttribute('aria-disabled');
+      }
+    }
   }
 
   const birthdateInput = document.getElementById('gate-birthdate');
