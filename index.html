@@ -1884,11 +1884,39 @@
   })();
 
   // ---------- TOP-RATED VENUES (Yelp, via the venues-search edge function) ----------
+  // Maps each "Interests" chip to real Yelp Fusion category aliases so a
+  // selected vertical actually filters live results, not just a display
+  // tag. Best-effort aliases based on Yelp's public category taxonomy —
+  // Yelp silently ignores any alias it doesn't recognize rather than
+  // erroring, so a stale/wrong alias just means fewer matches, not a
+  // broken search. Smoke & Cigar is included here too, but it can only
+  // ever reach this code path if the chip was actually selectable, which
+  // requires the 21+ lock to already be cleared client-side (see
+  // updateContentRatingLocks) — no dispensary categories anywhere in here.
+  const INTEREST_YELP_CATEGORIES = {
+    'Food & Drink': 'restaurants,bars',
+    'Outdoors': 'parks,hiking',
+    'Arts & Culture': 'arts,museums,theater',
+    'Games & Competition': 'arcades,bowling,escapegames,minigolf,gokarts,axethrowing',
+    'Live Music': 'musicvenues,jazzandblues',
+    'Wellness': 'spas,yoga',
+    'Nightlife': 'nightlife,cocktailbars',
+    'Shopping': 'shopping',
+    'Pet-Friendly': 'dog_parks,petstores,zoos,aquariums',
+    'Comedy': 'comedyclubs',
+    'Cultured': 'opera,theater,artmuseums,galleries',
+    'Oddities & Curiosities': 'museums',
+    'Smoke & Cigar': 'hookahbars,cigarbars,vapeshops,tobaccoshops',
+  };
+
   window.findTopVenues = async function(){
     const resultsEl = document.getElementById('top-venues-results');
     const btn = document.getElementById('find-venues-btn');
     const budget = document.querySelector('#budget-group .pill-option.selected');
     const radius = document.getElementById('radius-slider').value;
+    const selectedInterests = Array.from(
+      document.querySelectorAll('#interests-group .multiselect-chip.selected')
+    ).map(c => c.dataset.value);
 
     if (SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
       resultsEl.innerHTML = '<p class="venue-status-msg">Live venue search isn\'t configured on this page yet — add your Supabase anon key at the top of the script to enable it.</p>';
@@ -1905,6 +1933,11 @@
         radiusMiles: radius,
       });
       if (budget) params.set('budget', budget.dataset.value);
+
+      const categories = [...new Set(
+        selectedInterests.flatMap(v => (INTEREST_YELP_CATEGORIES[v] || '').split(',').filter(Boolean))
+      )];
+      if (categories.length) params.set('category', categories.join(','));
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/venues-search?${params.toString()}`, {
         headers: {
