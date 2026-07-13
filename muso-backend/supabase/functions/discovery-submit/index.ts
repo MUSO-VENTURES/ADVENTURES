@@ -16,26 +16,73 @@
 // rating. birthDate (YYYY-MM-DD) must be present and valid on every request
 // too — age is computed from it server-side rather than trusted from an
 // unverified checkbox, and the birthday itself is stored so it can be used
-// for birthday-special promotions later. Age must compute to 21+ whenever
-// contentRating is NC-17 or Adults Only (21, not 18, since routes can
-// involve bars and dispensaries — no lower "18 to enter" carve-out). This
-// mirrors the database CHECK
-// constraints added in 0004_venue_search_and_age_gate.sql /
-// 0006_birthday_capture.sql, so it's enforced twice: here (clear error
-// message for the client) and again at the DB layer (belt and suspenders —
-// no code path can bypass it, including future functions).
+// for birthday-special promotions later.
+//
+// Two-tier content rating gate: NC-17 requires 18+, Adults Only requires
+// 21+ (routes involving bars/dispensaries — no lower carve-out for that
+// tier). This mirrors the database CHECK constraints added in
+// 0004_venue_search_and_age_gate.sql / 0006_birthday_capture.sql, so it's
+// enforced twice: here (clear error message for the client) and again at
+// the DB layer (belt and suspenders — no code path can bypass it, including
+// future functions). age_confirmed stored on the row means "the caller met
+// whatever age bar their chosen contentRating required" — not a flat 21+ —
+// so it stays compatible with the DB constraint, which only checks that
+// flag is true whenever contentRating is adult-tier.
 //
 // Open to unauthenticated visitors too (a planner might fill this out before
 // creating an account), so it uses the admin client but validates the shape
 // tightly rather than relying on RLS to catch bad input.
 
-import { handleOptions, jsonResponse } from "../_shared/cors.ts";
-import { getSupabaseAdmin } from "../_shared/supabaseAdmin.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// Inlined from ../_shared/cors.ts and ../_shared/supabaseAdmin.ts — the
+// Supabase dashboard's single-function editor does not reliably bundle
+// sibling _shared/*.ts files added via its "Add File" UI (reproducibly
+// fails with "Module not found ... _shared/cors.ts" even when the files
+// are present with correct names/content). Inlining sidesteps that bundler
+// bug. The canonical source of truth for these helpers is still
+// muso-backend/supabase/functions/_shared/*.ts — keep both in sync if
+// either changes.
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+};
+
+function handleOptions(req: Request): Response | null {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  return null;
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function getSupabaseAdmin() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!url || !serviceKey) {
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured");
+  }
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 const VALID_BUDGETS = ["$", "$$", "$$$", "$$$$"];
 const VALID_RATINGS = ["G-Rated", "PG-Rated", "NC-17", "Adults Only"];
 const VALID_ALCOHOL = ["Alcohol-Friendly", "Sober / Alcohol-Free"];
-const ADULT_RATINGS = ["NC-17", "Adults Only"];
+const MIN_NC17_AGE = 18;
+const MIN_ADULTS_ONLY_AGE = 21;
 
 // Default pin: Livermore, CA 94551
 const DEFAULT_LAT = 37.6819;
@@ -109,11 +156,14 @@ Deno.serve(async (req) => {
     );
   }
 
-  const ageConfirmed = age >= 21;
   const contentRating = body.contentRating as string | undefined;
-  if (contentRating && ADULT_RATINGS.includes(contentRating) && !ageConfirmed) {
+  const requiredAge = contentRating === "Adults Only" ? MIN_ADULTS_ONLY_AGE
+    : contentRating === "NC-17" ? MIN_NC17_AGE
+    : null;
+  const ageConfirmed = requiredAge === null ? true : age >= requiredAge;
+  if (requiredAge !== null && !ageConfirmed) {
     return jsonResponse(
-      { error: "You must be 21 or older to select this content rating." },
+      { error: `You must be ${requiredAge} or older to select this content rating.` },
       400,
     );
   }
