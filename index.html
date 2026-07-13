@@ -39,8 +39,9 @@
   }
   .nav-inner{
     display:flex; align-items:center; justify-content:space-between;
-    max-width:1300px; margin:0 auto;
-    padding:18px 6vw;
+    width:100%; margin:0;
+    padding:18px 28px;
+    box-sizing:border-box;
   }
   .logo{
     font-family:'Fredoka', sans-serif;
@@ -894,7 +895,7 @@
 
     <div class="gate-disclaimer-box" id="gate-disclaimer-text">
       <p><strong>Participant acknowledgment &amp; assumption of risk.</strong> By using MUSO Adventures, you acknowledge and agree that: (1) routes may include physical activities, alcohol and/or cannabis service, and visits to third-party venues not owned or operated by MUSO Ventures ("MUSO"); (2) MUSO curates and suggests routes and venues but does not supervise, control, or guarantee the conduct of any venue, staff, or fellow participant; (3) you are solely responsible for your own decisions, safety, and conduct — including alcohol or cannabis consumption, participation in physical activities, and interactions with venues or other participants — throughout any MUSO Adventure; (4) any injury, loss, dispute, or other harm arising from your participation, including at third-party venues, is your responsibility and not that of MUSO, its officers, employees, or affiliates, except where caused by MUSO's own gross negligence or willful misconduct; (5) many venues (for example, axe-throwing locations, bars, and dispensaries) require their own separate liability waiver or ID check on-site, and this acknowledgment does not replace that requirement.</p>
-      <p><strong>Age requirement.</strong> You must be 21 years of age or older to access NC-17 or Adults Only content, or to enter routes involving bars, dispensaries, alcohol, or cannabis. We calculate your age from the birthday you provide below — MUSO does not otherwise independently verify identity, and venues will still check ID on-site as required by law.</p>
+      <p><strong>Age requirement.</strong> You must be 18 or older to access NC-17 content, and 21 or older to access Adults Only content or to enter routes involving bars, dispensaries, alcohol, or cannabis. We calculate your age from the birthday you provide below — MUSO does not otherwise independently verify identity, and venues will still check ID on-site as required by law. Enter your birthday once and we'll remember it — you won't need to re-confirm your age to unlock these ratings again.</p>
     </div>
 
     <div class="gate-field-row">
@@ -1041,7 +1042,7 @@
             <span class="pill-title">🟡 PG-Rated</span><span class="pill-desc">A little flirty, nothing wild</span>
           </div>
           <div class="pill-option" data-value="NC-17" onclick="selectPill(this,'rating')">
-            <span class="pill-title">🟠 NC-17<span class="age-badge">21+</span></span><span class="pill-desc">Adult humor, still tasteful</span>
+            <span class="pill-title">🟠 NC-17<span class="age-badge">18+</span></span><span class="pill-desc">Adult humor, still tasteful</span>
           </div>
           <div class="pill-option" data-value="Adults Only" onclick="selectPill(this,'rating')">
             <span class="pill-title">🔴 Adults Only<span class="age-badge">21+</span></span><span class="pill-desc">No limits</span>
@@ -1796,7 +1797,8 @@
       let gateOk = false;
       try {
         const saved = JSON.parse(localStorage.getItem('muso_gate_accepted_v1') || 'null');
-        gateOk = !!(saved && saved.ageConfirmed && saved.disclaimerAccepted);
+        const requiredAge = rating.dataset.value === 'Adults Only' ? MIN_ADULTS_ONLY_AGE : MIN_NC17_AGE;
+        gateOk = !!(saved && saved.disclaimerAccepted && typeof saved.age === 'number' && saved.age >= requiredAge);
       } catch (e) {}
       if (!gateOk) {
         document.getElementById('gate-overlay').removeAttribute('hidden');
@@ -1836,6 +1838,8 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxYWV6cHJzYmN5cXBubmF2ZHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MDU1NjksImV4cCI6MjA5OTM4MTU2OX0.8rpmMQSo6pgjdKfeeBFgY3lybvNVmFo4O10gjLg2kso';
   const GATE_STORAGE_KEY = 'muso_gate_accepted_v1';
   const MIN_ADULT_AGE = 21; // bars + dispensaries — no exceptions
+  const MIN_NC17_AGE = 18;        // unlocks the NC-17 content rating only
+  const MIN_ADULTS_ONLY_AGE = 21; // unlocks Adults Only (and everything below it)
 
   // Mirrors the server-side calculateAge() in the gate-capture / discovery-
   // submit edge functions. This copy is for instant UI feedback only — the
@@ -1853,13 +1857,19 @@
     return (age >= 0 && age <= 120) ? age : null;
   }
 
-  // Greys the 21+ content rating pills to 75% opacity and disables them for
-  // anyone whose computed age is under 21. Everyone else can still use the
-  // rest of the site (G/PG routes) — only these two ratings are locked.
-  function updateContentRatingLocks(ageConfirmed){
+  // Two-tier lock: NC-17 unlocks at 18, Adults Only (and the Smoke & Cigar
+  // interest chip — bars/dispensaries-adjacent) unlocks at 21. Takes the
+  // raw computed age (or null if the gate's never been completed) rather
+  // than a single boolean so both thresholds can be checked independently.
+  function updateContentRatingLocks(age){
+    const nc17Ok = typeof age === 'number' && age >= MIN_NC17_AGE;
+    const adultsOnlyOk = typeof age === 'number' && age >= MIN_ADULTS_ONLY_AGE;
+
     document.querySelectorAll('#rating-group .pill-option').forEach(p => {
-      const isAdult = p.dataset.value === 'NC-17' || p.dataset.value === 'Adults Only';
-      const locked = isAdult && !ageConfirmed;
+      const requiredOk = p.dataset.value === 'Adults Only' ? adultsOnlyOk
+        : p.dataset.value === 'NC-17' ? nc17Ok
+        : true;
+      const locked = !requiredOk;
       p.classList.toggle('locked', locked);
       if (locked) {
         p.setAttribute('aria-disabled', 'true');
@@ -1870,12 +1880,12 @@
     });
 
     // Smoke & Cigar interest (hookah lounges, cigar shops, smoke shops) is
-    // 21+ only, same threshold and same lock/grey treatment as the adult
-    // content ratings above — self-reported birthdate only, no dispensary
-    // tie-in and no separate ID-verification flow.
+    // 21+ only, same threshold and same lock/grey treatment as Adults Only
+    // above — self-reported birthdate only, no dispensary tie-in and no
+    // separate ID-verification flow.
     const smokeChip = document.getElementById('smoke-cigar-chip');
     if (smokeChip) {
-      const locked = !ageConfirmed;
+      const locked = !adultsOnlyOk;
       smokeChip.classList.toggle('locked', locked);
       if (locked) {
         smokeChip.setAttribute('aria-disabled', 'true');
@@ -1914,6 +1924,9 @@
     }
     err.textContent = '';
 
+    // ageConfirmed kept for backward-compat with the 21+-only checks
+    // elsewhere (e.g. the alcohol/cannabis routing disclaimer) — content
+    // rating locks themselves now read the raw age via updateContentRatingLocks.
     const ageConfirmed = age >= MIN_ADULT_AGE;
     const email = (document.getElementById('gate-email').value || '').trim();
 
@@ -1927,7 +1940,7 @@
       }));
     } catch (e) {}
 
-    updateContentRatingLocks(ageConfirmed);
+    updateContentRatingLocks(age);
     document.getElementById('gate-overlay').setAttribute('hidden', '');
 
     // Best-effort, fire-and-forget: stores the birthday (and optional email)
@@ -1950,12 +1963,15 @@
     }
   };
 
+  // Runs on every page load/revisit. If this browser already completed the
+  // gate once, we don't ask again — the ratings unlock immediately from the
+  // birthday already on file, no separate "unlock" step required.
   (function initGate(){
     try {
       const saved = JSON.parse(localStorage.getItem(GATE_STORAGE_KEY) || 'null');
       if (saved && saved.disclaimerAccepted && saved.birthDate) {
         document.getElementById('gate-overlay').setAttribute('hidden', '');
-        updateContentRatingLocks(!!saved.ageConfirmed);
+        updateContentRatingLocks(typeof saved.age === 'number' ? saved.age : null);
       }
     } catch (e) {}
   })();
