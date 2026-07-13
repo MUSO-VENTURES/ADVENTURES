@@ -7,10 +7,13 @@
 // caller's profile reaches Level 5 (xp >= 400); otherwise costs
 // VENUE_SEARCH_COST Adventure Coins. Permanent once unlocked.
 //
-// 'radius' — raises the caller's unlocked_radius_miles from the free 25mi
-// default up to RADIUS_UNLOCK_MILES. Coins-only, no level path. Permanent
-// once unlocked (re-running it when already at/above the target is a no-op
-// success, not an error).
+// 'radius' — raises the caller's unlocked_radius_miles from the free 30mi
+// default up to RADIUS_UNLOCK_MILES (50mi). Coins-only, no level path.
+// Permanent once unlocked (re-running it when already at/above the target
+// is a no-op success, not an error). A third, 100mi "exclusive" tier exists
+// above this one (0012_radius_tiers.sql) but is intentionally NOT reachable
+// from here — it's a manual grant for hand-picked participants, not
+// something coins or levels can buy.
 //
 // 'extra_stops' — raises the caller's unlocked_stop_count from the free
 // default of 3 up to EXTRA_STOPS_STOP_COUNT (5), unlocking the remaining
@@ -90,7 +93,7 @@ function getSupabaseAdmin() {
 const UNLOCK_LEVEL = 5; // xp >= 400
 const VENUE_SEARCH_COST = 250;
 const RADIUS_UNLOCK_COST = 150;
-const RADIUS_UNLOCK_MILES = 100;
+const RADIUS_UNLOCK_MILES = 50; // exclusive 100mi tier is a manual grant, not unlockable here
 const EXTRA_STOPS_LEVEL = 3; // xp >= 200
 const EXTRA_STOPS_COST = 200;
 const EXTRA_STOPS_STOP_COUNT = 5;
@@ -213,7 +216,7 @@ Deno.serve(async (req) => {
   }
 
   if (feature === "radius") {
-    if ((profile.unlocked_radius_miles ?? 25) >= RADIUS_UNLOCK_MILES) {
+    if ((profile.unlocked_radius_miles ?? 30) >= RADIUS_UNLOCK_MILES) {
       const newBadge = await awardBadge(admin, userId, "radius_unlocked");
       return jsonResponse({
         ok: true,
