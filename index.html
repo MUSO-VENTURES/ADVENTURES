@@ -250,6 +250,17 @@
     color:var(--ink);
   }
   .stop-chip:hover{border-color:var(--coral);}
+  .stop-chip.locked{
+    cursor:pointer;
+    opacity:0.55;
+    background:rgba(255,248,240,0.04);
+  }
+  .stop-chip.locked:hover{border-color:rgba(255,248,240,0.16);}
+  .stop-selector-note{
+    text-align:center; font-size:0.78rem; opacity:0; max-height:0; overflow:hidden;
+    color:var(--tangerine); margin:-18px 0 24px; transition:opacity .2s;
+  }
+  .stop-selector-note.show{ opacity:0.9; max-height:40px; margin-top:-18px; margin-bottom:24px; }
 
   .itinerary{
     max-width:520px; margin:0 auto 22px; text-align:left;
@@ -916,9 +927,10 @@
     <div class="stop-selector" id="stop-selector">
       <div class="stop-chip" data-stops="2" onclick="setStopCount(2)">2 stops</div>
       <div class="stop-chip active" data-stops="3" onclick="setStopCount(3)">3 stops</div>
-      <div class="stop-chip" data-stops="4" onclick="setStopCount(4)">4 stops</div>
-      <div class="stop-chip" data-stops="5" onclick="setStopCount(5)">5 stops</div>
+      <div class="stop-chip locked" data-stops="4" onclick="setStopCount(4)">4 stops 🔒</div>
+      <div class="stop-chip locked" data-stops="5" onclick="setStopCount(5)">5 stops 🔒</div>
     </div>
+    <p class="stop-selector-note" id="stop-selector-note">🔒 Free adventures include up to 3 stops. Unlock 4–5 stops by leveling up or with Adventure Coins once you start playing.</p>
 
     <div class="step-row">
       <div class="step-dot active" id="dot-1">1</div>
@@ -1549,6 +1561,15 @@
   let state = {step:1, mood:null, key:null, stopCount:3};
 
   window.setStopCount = function(n){
+    const note = document.getElementById('stop-selector-note');
+    if(n > 3){
+      // Mirrors the real app's free-tier cap (0011_stop_unlock.sql /
+      // unlock-feature edge function) — the marketing demo shouldn't
+      // let you select stop counts a free player can't actually get.
+      if(note) note.classList.add('show');
+      return;
+    }
+    if(note) note.classList.remove('show');
     state.stopCount = n;
     document.querySelectorAll('.stop-chip').forEach(chip=>{
       chip.classList.toggle('active', parseInt(chip.dataset.stops)===n);
@@ -1588,7 +1609,7 @@
     const randomMood = moods[Math.floor(Math.random() * moods.length)];
     const twistOptions = routes[2][randomMood].options;
     const randomTwist = twistOptions[Math.floor(Math.random() * twistOptions.length)];
-    const randomStopCount = Math.floor(Math.random() * 4) + 2; // 2 to 5
+    const randomStopCount = Math.floor(Math.random() * 2) + 2; // 2 to 3 — free-tier cap
 
     state.stopCount = randomStopCount;
     document.querySelectorAll('.stop-chip').forEach(chip=>{
