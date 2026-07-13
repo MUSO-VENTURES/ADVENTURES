@@ -46,6 +46,26 @@
   .back-link{ font-size:0.88rem; opacity:0.7; text-decoration:none; font-weight:500; }
   .back-link:hover{ opacity:1; }
 
+  .shop-account-bar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
+  .signin-form{ display:flex; gap:6px; }
+  .signin-form input{
+    padding:8px 12px; border-radius:999px; border:1.5px solid rgba(37,33,59,0.15);
+    font-family:'Space Grotesk', sans-serif; font-size:0.85rem; width:170px;
+  }
+  .signin-form input:focus{ outline:none; border-color:var(--teal); }
+  .signin-btn{
+    padding:8px 16px; border-radius:999px; border:none; background:var(--ink); color:#fff;
+    font-weight:600; font-size:0.85rem; cursor:pointer; font-family:'Space Grotesk', sans-serif;
+  }
+  .signin-btn:hover{ background:var(--plum); }
+  .signin-msg{ font-size:0.78rem; opacity:0.65; }
+  .signout-link{ font-size:0.85rem; opacity:0.7; cursor:pointer; font-weight:500; }
+  .signout-link:hover{ opacity:1; text-decoration:underline; }
+  .coin-pill{
+    display:inline-flex; align-items:center; gap:4px; background:var(--cream); border-radius:999px;
+    padding:6px 14px; font-weight:700; font-family:'Fredoka',sans-serif; font-size:0.85rem; color:var(--deep-teal);
+  }
+
   header.hero{
     padding:6vh 6vw 3vh; text-align:center; max-width:760px; margin:0 auto;
   }
@@ -110,6 +130,13 @@
     padding:3px 10px; border-radius:999px; font-family:'Fredoka',sans-serif;
   }
   .p-perCoin{ font-size:0.72rem; opacity:0.55; }
+  .buy-btn{
+    margin-top:12px; width:100%; padding:10px 0; border-radius:999px; border:none;
+    background:var(--teal); color:#fff; font-weight:700; font-family:'Fredoka',sans-serif;
+    font-size:0.92rem; cursor:pointer; transition:background .15s;
+  }
+  .buy-btn:hover{ background:var(--deep-teal); }
+  .buy-btn:disabled{ opacity:0.6; cursor:default; }
 
   /* ---------- SUBSCRIPTION ---------- */
   .pass-grid{
@@ -151,7 +178,7 @@
 
 <nav>
   <a class="logo" href="/preview/"><span class="dot"></span>MUSO Adventures</a>
-  <a class="back-link" href="/preview/">&larr; Back to the app</a>
+  <div id="shop-account-bar" class="shop-account-bar"></div>
 </nav>
 
 <header class="hero">
@@ -236,24 +263,28 @@
       <div class="p-coins">50 coins</div>
       <div class="p-price">$0.99</div>
       <div class="p-perCoin">Starter pack</div>
+      <button type="button" class="buy-btn" data-tier="tier1" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card">
       <div class="p-coin">🪙</div>
       <div class="p-coins">100 coins</div>
       <div class="p-price">$1.99</div>
       <div class="p-perCoin">&nbsp;</div>
+      <button type="button" class="buy-btn" data-tier="tier2" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card">
       <div class="p-coin">🪙</div>
       <div class="p-coins">150 coins</div>
       <div class="p-price">$2.49</div>
       <div class="p-save">Save 16%</div>
+      <button type="button" class="buy-btn" data-tier="tier3" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card">
       <div class="p-coin">🪙</div>
       <div class="p-coins">200 coins</div>
       <div class="p-price">$2.99</div>
       <div class="p-save">Save 24%</div>
+      <button type="button" class="buy-btn" data-tier="tier4" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card featured">
       <div class="pack-ribbon">🔥 Most Popular</div>
@@ -261,12 +292,14 @@
       <div class="p-coins">500 coins</div>
       <div class="p-price">$6.99</div>
       <div class="p-save">Save 29%</div>
+      <button type="button" class="buy-btn" data-tier="tier5" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card">
       <div class="p-coin">🪙</div>
       <div class="p-coins">1,000 coins</div>
       <div class="p-price">$12.99</div>
       <div class="p-save">Save 34%</div>
+      <button type="button" class="buy-btn" data-tier="tier6" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card featured">
       <div class="pack-ribbon">💎 Best Value</div>
@@ -274,18 +307,21 @@
       <div class="p-coins">2,500 coins</div>
       <div class="p-price">$29.99</div>
       <div class="p-save">Save 39%</div>
+      <button type="button" class="buy-btn" data-tier="tier7" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card">
       <div class="p-coin">🪙</div>
       <div class="p-coins">5,000 coins</div>
       <div class="p-price">$54.99</div>
       <div class="p-save">Save 45%</div>
+      <button type="button" class="buy-btn" data-tier="tier8" onclick="buyPack(this)">Buy Now</button>
     </div>
     <div class="pack-card">
       <div class="p-coin">🪙</div>
       <div class="p-coins">10,000 coins</div>
       <div class="p-price">$99.99</div>
       <div class="p-save">Save 50%</div>
+      <button type="button" class="buy-btn" data-tier="tier9" onclick="buyPack(this)">Buy Now</button>
     </div>
   </div>
 </section>
@@ -353,6 +389,129 @@
 <footer>
   <p>Prices shown in USD. Adventure Coins and MUSO Pass are used only within MUSO Adventures and have no cash value outside the app.</p>
 </footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  // Same project as /preview/ and /sandbox/ — one shared Supabase Auth
+  // backend, so a player signed in here is signed in everywhere.
+  const SUPABASE_URL = 'https://aqaezprsbcyqpnnavdpv.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxYWV6cHJzYmN5cXBubmF2ZHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MDU1NjksImV4cCI6MjA5OTM4MTU2OX0.8rpmMQSo6pgjdKfeeBFgY3lybvNVmFo4O10gjLg2kso';
+
+  const supabaseClient = window.supabase
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  let currentSession = null;
+
+  async function getAccessToken() {
+    if (!supabaseClient || !currentSession) return null;
+    const { data } = await supabaseClient.auth.getSession();
+    return data?.session?.access_token ?? null;
+  }
+
+  function renderAccountBar() {
+    const el = document.getElementById('shop-account-bar');
+    if (!el) return;
+    if (!currentSession) {
+      el.innerHTML = `
+        <form class="signin-form" onsubmit="event.preventDefault(); sendMagicLink();">
+          <input type="email" id="signin-email" placeholder="you@example.com" required>
+          <button type="submit" class="signin-btn">Sign in</button>
+        </form>
+        <span class="signin-msg" id="signin-msg"></span>
+        <a class="back-link" href="/preview/">&larr; Back to the app</a>
+      `;
+    } else {
+      el.innerHTML = `
+        <span class="signin-msg" id="signin-msg"></span>
+        <a class="back-link" href="/preview/">&larr; Back to the app</a>
+        <span class="signout-link" onclick="signOut()">Sign out</span>
+      `;
+    }
+    document.querySelectorAll('.buy-btn').forEach(btn => {
+      btn.textContent = currentSession ? 'Buy Now' : 'Sign in to buy';
+    });
+  }
+
+  window.sendMagicLink = async function () {
+    if (!supabaseClient) return;
+    const emailInput = document.getElementById('signin-email');
+    const msg = document.getElementById('signin-msg');
+    const email = emailInput.value.trim();
+    if (!email) return;
+    msg.textContent = 'Sending link…';
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href.split('?')[0] },
+    });
+    msg.textContent = error ? `Error: ${error.message}` : 'Check your email for a sign-in link.';
+  };
+
+  window.signOut = async function () {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    currentSession = null;
+    renderAccountBar();
+  };
+
+  window.buyPack = async function (btn) {
+    if (!currentSession) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('signin-email')?.focus();
+      return;
+    }
+    const tier = btn.dataset.tier;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Redirecting…';
+    const token = await getAccessToken();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/buy-coins`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          pack: tier,
+          successUrl: window.location.href.split('?')[0] + '?checkout=success',
+          cancelUrl: window.location.href.split('?')[0] + '?checkout=cancel',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Could not start checkout.');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+      window.location.href = data.url;
+    } catch (e) {
+      alert('Could not reach checkout: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  };
+
+  (async function init() {
+    renderAccountBar();
+    if (!supabaseClient) return;
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    currentSession = session;
+    renderAccountBar();
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      currentSession = session;
+      renderAccountBar();
+    });
+    if (new URLSearchParams(window.location.search).get('checkout') === 'success') {
+      setTimeout(() => {
+        const msg = document.getElementById('signin-msg');
+        if (msg) msg.textContent = 'Purchase complete — coins added to your account!';
+      }, 300);
+    }
+  })();
+</script>
 
 </body>
 </html>
