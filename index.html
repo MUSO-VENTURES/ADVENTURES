@@ -54,9 +54,19 @@
     background:var(--coral);
     display:inline-block;
   }
-  .navlinks{display:flex; gap:28px; font-size:0.95rem; font-weight:500;}
+  .navlinks{display:flex; align-items:center; gap:28px; font-size:0.95rem; font-weight:500;}
   .navlinks a{text-decoration:none; opacity:0.75; transition:opacity .2s;}
   .navlinks a:hover{opacity:1;}
+  .nav-cta{
+    background:var(--coral);
+    color:#fff !important;
+    opacity:1 !important;
+    padding:9px 18px;
+    border-radius:999px;
+    font-weight:600;
+    font-size:0.9rem;
+  }
+  .nav-cta:hover{background:var(--deep-teal);}
 
   /* ---------- HERO ---------- */
   .hero{
@@ -710,7 +720,8 @@
   footer .fine{font-size:0.78rem; opacity:0.45; margin-top:26px;}
 
   @media (max-width:640px){
-    .navlinks{display:none;}
+    .navlinks a:not(.nav-cta){display:none;}
+    .navlinks{gap:0;}
     section{padding:8vh 6vw;}
   }
 
@@ -928,6 +939,7 @@
       <a href="#discovery">Plan It</a>
       <a href="#users">For Every Crew</a>
       <a href="#leaderboard">Leaderboard</a>
+      <a href="/shop/" class="nav-cta">Sign In / Shop</a>
     </div>
   </div>
 </nav>
