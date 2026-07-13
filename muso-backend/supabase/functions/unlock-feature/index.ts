@@ -1,5 +1,5 @@
 // POST /unlock-feature
-// Body: { feature: 'venue_search' | 'radius' }
+// Body: { feature: 'venue_search' | 'radius' | 'extra_stops' }
 //     | { feature: 'theme', themeId: string, action?: 'unlock' | 'activate' }
 // Requires Authorization: Bearer <user JWT> (Supabase Auth).
 //
@@ -11,6 +11,13 @@
 // default up to RADIUS_UNLOCK_MILES. Coins-only, no level path. Permanent
 // once unlocked (re-running it when already at/above the target is a no-op
 // success, not an error).
+//
+// 'extra_stops' — raises the caller's unlocked_stop_count from the free
+// default of 3 up to EXTRA_STOPS_STOP_COUNT (5), unlocking the remaining
+// stops on any route that has them. Free once the caller reaches Level 3
+// (xp >= 200 — about 4 check-ins, so "earn it by playing"); otherwise costs
+// EXTRA_STOPS_COST Adventure Coins (earned via xp_reward or bought via
+// buy-coins/Stripe — "pay to play"). Permanent once unlocked.
 //
 // 'theme' — unlocks or switches a visual "skin" for the player-facing
 // pages. action defaults to 'unlock' (checks the theme's unlock_method —
@@ -42,6 +49,9 @@ const UNLOCK_LEVEL = 5; // xp >= 400
 const VENUE_SEARCH_COST = 250;
 const RADIUS_UNLOCK_COST = 150;
 const RADIUS_UNLOCK_MILES = 100;
+const EXTRA_STOPS_LEVEL = 3; // xp >= 200
+const EXTRA_STOPS_COST = 200;
+const EXTRA_STOPS_STOP_COUNT = 5;
 
 type Badge = { key: string; name: string; description: string; emoji: string };
 
@@ -89,8 +99,8 @@ Deno.serve(async (req) => {
   }
 
   const feature = body.feature;
-  if (feature !== "venue_search" && feature !== "radius" && feature !== "theme") {
-    return jsonResponse({ error: "feature must be 'venue_search', 'radius', or 'theme'" }, 400);
+  if (feature !== "venue_search" && feature !== "radius" && feature !== "theme" && feature !== "extra_stops") {
+    return jsonResponse({ error: "feature must be 'venue_search', 'radius', 'extra_stops', or 'theme'" }, 400);
   }
 
   if (feature === "theme") {
@@ -111,7 +121,7 @@ Deno.serve(async (req) => {
 
   const { data: profile, error: profileErr } = await admin
     .from("profiles")
-    .select("level, adventure_coins, unlocked_radius_miles, venues_search_unlocked")
+    .select("level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count")
     .eq("id", userId)
     .maybeSingle();
 
@@ -160,43 +170,95 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: true, unlocked: true, method: "coins", spent: VENUE_SEARCH_COST, newBadge });
   }
 
-  // feature === "radius"
-  if ((profile.unlocked_radius_miles ?? 25) >= RADIUS_UNLOCK_MILES) {
+  if (feature === "radius") {
+    if ((profile.unlocked_radius_miles ?? 25) >= RADIUS_UNLOCK_MILES) {
+      const newBadge = await awardBadge(admin, userId, "radius_unlocked");
+      return jsonResponse({
+        ok: true,
+        alreadyUnlocked: true,
+        unlockedRadiusMiles: profile.unlocked_radius_miles,
+        newBadge,
+      });
+    }
+
+    const { data: success, error } = await admin.rpc("debit_coins", {
+      p_profile_id: userId,
+      p_amount: RADIUS_UNLOCK_COST,
+      p_reason: "unlock_radius",
+    });
+    if (error) return jsonResponse({ error: error.message }, 400);
+    if (!success) {
+      return jsonResponse(
+        {
+          error: `Not enough Adventure Coins. Need ${RADIUS_UNLOCK_COST}, you have ${profile.adventure_coins}.`,
+        },
+        402,
+      );
+    }
+
+    const { error: radiusErr } = await admin
+      .from("profiles")
+      .update({ unlocked_radius_miles: RADIUS_UNLOCK_MILES })
+      .eq("id", userId);
+    if (radiusErr) return jsonResponse({ error: radiusErr.message }, 400);
+
     const newBadge = await awardBadge(admin, userId, "radius_unlocked");
     return jsonResponse({
       ok: true,
-      alreadyUnlocked: true,
-      unlockedRadiusMiles: profile.unlocked_radius_miles,
+      unlockedRadiusMiles: RADIUS_UNLOCK_MILES,
+      spent: RADIUS_UNLOCK_COST,
       newBadge,
     });
   }
 
-  const { data: success, error } = await admin.rpc("debit_coins", {
+  // feature === "extra_stops"
+  if ((profile.unlocked_stop_count ?? 3) >= EXTRA_STOPS_STOP_COUNT) {
+    const newBadge = await awardBadge(admin, userId, "extra_stops_unlocked");
+    return jsonResponse({
+      ok: true,
+      alreadyUnlocked: true,
+      unlockedStopCount: profile.unlocked_stop_count,
+      newBadge,
+    });
+  }
+
+  if ((profile.level ?? 1) >= EXTRA_STOPS_LEVEL) {
+    const { error: levelErr } = await admin
+      .from("profiles")
+      .update({ unlocked_stop_count: EXTRA_STOPS_STOP_COUNT })
+      .eq("id", userId);
+    if (levelErr) return jsonResponse({ error: levelErr.message }, 400);
+    const newBadge = await awardBadge(admin, userId, "extra_stops_unlocked");
+    return jsonResponse({ ok: true, unlockedStopCount: EXTRA_STOPS_STOP_COUNT, method: "level", newBadge });
+  }
+
+  const { data: stopsSuccess, error: stopsDebitErr } = await admin.rpc("debit_coins", {
     p_profile_id: userId,
-    p_amount: RADIUS_UNLOCK_COST,
-    p_reason: "unlock_radius",
+    p_amount: EXTRA_STOPS_COST,
+    p_reason: "unlock_extra_stops",
   });
-  if (error) return jsonResponse({ error: error.message }, 400);
-  if (!success) {
+  if (stopsDebitErr) return jsonResponse({ error: stopsDebitErr.message }, 400);
+  if (!stopsSuccess) {
     return jsonResponse(
       {
-        error: `Not enough Adventure Coins. Need ${RADIUS_UNLOCK_COST}, you have ${profile.adventure_coins}.`,
+        error: `Not enough Adventure Coins. Need ${EXTRA_STOPS_COST}, you have ${profile.adventure_coins}. Reach Level ${EXTRA_STOPS_LEVEL} to unlock for free instead.`,
       },
       402,
     );
   }
 
-  const { error: radiusErr } = await admin
+  const { error: stopsErr } = await admin
     .from("profiles")
-    .update({ unlocked_radius_miles: RADIUS_UNLOCK_MILES })
+    .update({ unlocked_stop_count: EXTRA_STOPS_STOP_COUNT })
     .eq("id", userId);
-  if (radiusErr) return jsonResponse({ error: radiusErr.message }, 400);
+  if (stopsErr) return jsonResponse({ error: stopsErr.message }, 400);
 
-  const newBadge = await awardBadge(admin, userId, "radius_unlocked");
+  const newBadge = await awardBadge(admin, userId, "extra_stops_unlocked");
   return jsonResponse({
     ok: true,
-    unlockedRadiusMiles: RADIUS_UNLOCK_MILES,
-    spent: RADIUS_UNLOCK_COST,
+    unlockedStopCount: EXTRA_STOPS_STOP_COUNT,
+    method: "coins",
+    spent: EXTRA_STOPS_COST,
     newBadge,
   });
 });
