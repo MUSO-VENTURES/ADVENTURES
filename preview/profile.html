@@ -187,6 +187,7 @@
         <div class="stat-box"><div class="num" id="stat-coins">0</div><div class="label">Adventure Coins</div></div>
         <div class="stat-box"><div class="num" id="stat-radius">25 mi</div><div class="label">Unlocked radius</div></div>
         <div class="stat-box"><div class="num" id="stat-search">Locked</div><div class="label">Real venue search</div></div>
+        <div class="stat-box"><div class="num" id="stat-stops">3/5</div><div class="label">Adventure stops</div></div>
       </div>
     </div>
 
@@ -266,7 +267,7 @@
   };
 
   async function fetchOrCreateProfile(userId, email) {
-    const cols = 'id, display_name, avatar_color, avatar_url, bio, phone, birth_date, anniversary_date, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, created_at';
+    const cols = 'id, display_name, avatar_color, avatar_url, bio, phone, birth_date, anniversary_date, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count, created_at';
     const { data: existing } = await supabaseClient.from('profiles').select(cols).eq('id', userId).maybeSingle();
     if (existing) return existing;
     const displayName = (email || 'Explorer').split('@')[0];
@@ -304,6 +305,7 @@
     document.getElementById('stat-coins').textContent = profile.adventure_coins ?? 0;
     document.getElementById('stat-radius').textContent = `${profile.unlocked_radius_miles ?? 25} mi`;
     document.getElementById('stat-search').textContent = profile.venues_search_unlocked || level >= UNLOCK_LEVEL ? 'Unlocked' : 'Locked';
+    document.getElementById('stat-stops').textContent = `${profile.unlocked_stop_count ?? 3}/5`;
   }
 
   function fillEditForm() {

@@ -307,6 +307,17 @@
     font-weight:700; font-family:'Fredoka',sans-serif; font-size:0.82rem; cursor:pointer; flex-shrink:0;
   }
   .checkin-btn:disabled{ opacity:0.5; cursor:default; }
+
+  /* Tier-level cap on total stops in a route — distinct from
+     .itinerary-stop.locked, which means "not reached yet in sequence." */
+  .stop-tier-lock{
+    display:flex; align-items:center; gap:14px; background:var(--cream); border:2px dashed var(--coral);
+    border-radius:14px; padding:16px; margin-top:14px; flex-wrap:wrap;
+  }
+  .stop-tier-lock-icon{ font-size:1.8rem; flex-shrink:0; }
+  .stop-tier-lock-body{ flex:1; min-width:180px; }
+  .stop-tier-lock-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.95rem; }
+  .stop-tier-lock-desc{ font-size:0.8rem; opacity:0.75; margin-top:2px; }
   .adventure-complete-banner{
     background:linear-gradient(90deg, var(--coral), var(--tangerine)); color:#fff; border-radius:14px;
     padding:16px 18px; text-align:center; font-family:'Fredoka',sans-serif; font-weight:700; margin-bottom:12px;
@@ -486,9 +497,13 @@
   const RADIUS_UNLOCK_COST = 150;
   const RADIUS_UNLOCK_MILES = 100;
   const FREE_RADIUS_MILES = 25;
+  const EXTRA_STOPS_LEVEL = 3;         // must match unlock-feature edge function
+  const EXTRA_STOPS_COST = 200;
+  const FREE_STOP_COUNT = 3;
+  const EXTRA_STOPS_STOP_COUNT = 5;
 
   let currentSession = null;   // Supabase auth session, or null if signed out
-  let currentProfile = null;   // { level, xp, adventure_coins, unlocked_radius_miles, venues_search_unlocked }
+  let currentProfile = null;   // { level, xp, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count }
   let lastSearchUnlocked = false; // from the most recent venues-search response
   let currentBadgeKeys = new Set(); // badge_key set for the signed-in player
   let activeAdventure = null;  // { adventureId, routeId, route, stops, doneIds } once an adventure is underway
@@ -506,7 +521,7 @@
     if (!supabaseClient) return null;
     const { data: existing } = await supabaseClient
       .from('profiles')
-      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked')
+      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count')
       .eq('id', userId)
       .maybeSingle();
     if (existing) return existing;
@@ -517,7 +532,7 @@
     const { data: created, error } = await supabaseClient
       .from('profiles')
       .insert({ id: userId, display_name: displayName })
-      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked')
+      .select('id, xp, level, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count')
       .single();
     if (error) { console.warn('Could not create profile:', error.message); return null; }
     return created;
@@ -645,6 +660,7 @@
       updateLockedVenueUI();
       updateRadiusLockUI();
       if (feature === 'venue_search') loadVenues();
+      if (feature === 'extra_stops' && activeAdventure) await loadItinerary(activeAdventure.adventureId);
       if (data.newBadge) queueCelebrations([data.newBadge]);
     } catch (e) {
       alert('Could not reach the unlock service: ' + e.message);
@@ -754,16 +770,21 @@
       const { count } = await supabaseClient.from('route_stops').select('id', { count: 'exact', head: true }).eq('route_id', r.id);
       counts[r.id] = count || 0;
     }
-    body.innerHTML = `<div class="route-pick-list">${routes.map(r => `
+    const unlockedStopCount = currentProfile?.unlocked_stop_count ?? FREE_STOP_COUNT;
+    body.innerHTML = `<div class="route-pick-list">${routes.map(r => {
+      const total = counts[r.id];
+      const capped = total > unlockedStopCount;
+      return `
       <div class="route-pick-card">
         <div>
           <div class="rp-title">${r.title}</div>
           <div class="rp-desc">${r.description || ''}</div>
-          <div class="rp-meta">${counts[r.id]} stop${counts[r.id] === 1 ? '' : 's'}</div>
+          <div class="rp-meta">${capped ? `${unlockedStopCount} of ${total} stops — 🔒 unlock the rest once you're on the adventure` : `${total} stop${total === 1 ? '' : 's'}`}</div>
         </div>
         <button type="button" class="start-adv-btn" onclick="startAdventure('${r.id}')">Start This Adventure</button>
       </div>
-    `).join('')}</div>`;
+    `;
+    }).join('')}</div>`;
   }
 
   window.startAdventure = async function (routeId) {
@@ -784,8 +805,14 @@
       }
 
       const { count: stopCount } = await supabaseClient.from('route_stops').select('id', { count: 'exact', head: true }).eq('route_id', routeId);
+      // adventures.stop_count reflects what's actually reachable right now —
+      // capped at the player's unlocked_stop_count (route-detail applies the
+      // same cap when serving the itinerary, so this just keeps the local
+      // adventures row consistent with what the player can see).
+      const unlockedStopCount = currentProfile?.unlocked_stop_count ?? FREE_STOP_COUNT;
+      const cappedStopCount = Math.min(stopCount || 0, unlockedStopCount);
       const { data: adventure, error: advErr } = await supabaseClient
-        .from('adventures').insert({ party_id: partyId, route_id: routeId, stop_count: stopCount || 0 })
+        .from('adventures').insert({ party_id: partyId, route_id: routeId, stop_count: cappedStopCount })
         .select('id').single();
       if (advErr) throw advErr;
 
@@ -821,16 +848,29 @@
     const { data: checkIns } = await supabaseClient.from('check_ins').select('route_stop_id').eq('adventure_id', adventureId);
     const doneIds = new Set((checkIns || []).map(c => c.route_stop_id));
 
-    activeAdventure = { adventureId, routeId: adv.route_id, route: routeData.route, stops: routeData.stops, doneIds };
+    activeAdventure = {
+      adventureId,
+      routeId: adv.route_id,
+      route: routeData.route,
+      stops: routeData.stops,
+      doneIds,
+      unlockedStopCount: routeData.unlockedStopCount ?? FREE_STOP_COUNT,
+      totalStops: routeData.totalStops ?? routeData.stops.length,
+      stopsLocked: !!routeData.locked,
+    };
     renderItinerary();
   }
 
   function renderItinerary() {
     const body = document.getElementById('adventure-body');
     if (!activeAdventure) return;
-    const { route, stops, doneIds } = activeAdventure;
+    const { route, stops, doneIds, stopsLocked, unlockedStopCount, totalStops } = activeAdventure;
     const firstIncompleteIdx = stops.findIndex(s => !doneIds.has(s.id));
-    const allDone = firstIncompleteIdx === -1;
+    const allVisibleDone = firstIncompleteIdx === -1;
+    // Only celebrate "complete" once there's nothing left to unlock, either —
+    // otherwise a player who's cleared their free 3 stops but has 2 more
+    // sitting behind the tier lock would see a misleading "you're done."
+    const allDone = allVisibleDone && !stopsLocked;
 
     const rows = stops.map((s, i) => {
       const isDone = doneIds.has(s.id);
@@ -852,6 +892,20 @@
       `;
     }).join('');
 
+    // Distinct from the per-stop ".itinerary-stop.locked" state above (which
+    // means "you haven't reached this stop in sequence yet") — this is the
+    // tier-level cap on how many stops this adventure includes at all.
+    const tierLockHtml = stopsLocked ? `
+      <div class="stop-tier-lock">
+        <div class="stop-tier-lock-icon">🔒</div>
+        <div class="stop-tier-lock-body">
+          <div class="stop-tier-lock-title">${totalStops - unlockedStopCount} more stop${totalStops - unlockedStopCount === 1 ? '' : 's'} available</div>
+          <div class="stop-tier-lock-desc">Your free adventure includes ${unlockedStopCount} stops. Reach Level ${EXTRA_STOPS_LEVEL} or spend ${EXTRA_STOPS_COST} Adventure Coins to unlock all ${EXTRA_STOPS_STOP_COUNT}.</div>
+        </div>
+        <button type="button" class="unlock-coins-btn" onclick="unlockFeature('extra_stops')">Unlock the rest</button>
+      </div>
+    ` : '';
+
     body.innerHTML = `
       ${allDone ? `
         <div class="adventure-complete-banner">🏁 Adventure complete! Great work.</div>
@@ -859,6 +913,7 @@
       ` : ''}
       <div style="font-family:'Fredoka',sans-serif; font-weight:700; margin-bottom:10px;">${route.title}</div>
       <div class="itinerary-list">${rows}</div>
+      ${tierLockHtml}
     `;
   }
 
