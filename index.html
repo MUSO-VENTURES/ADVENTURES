@@ -33,11 +33,14 @@
   /* ---------- NAV ---------- */
   nav{
     position:sticky; top:0; z-index:50;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:18px 6vw;
     background:rgba(255,248,240,0.85);
     backdrop-filter:blur(8px);
     border-bottom:2px solid rgba(37,33,59,0.06);
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    max-width:1300px; margin:0 auto;
+    padding:18px 6vw;
   }
   .logo{
     font-family:'Fredoka', sans-serif;
@@ -388,7 +391,7 @@
     font-family:'Fredoka',sans-serif; font-weight:700; font-size:1rem;
     color:var(--cream); margin-bottom:12px; display:block;
   }
-  .form-group .form-hint{ font-size:0.82rem; opacity:0.55; margin-bottom:12px; margin-top:-8px; }
+  .form-group .form-hint{ font-size:0.82rem; opacity:0.55; margin-bottom:18px; margin-top:-8px; }
 
   .pill-group{ display:flex; gap:10px; flex-wrap:wrap; }
   .pill-option{
@@ -834,6 +837,7 @@
   }
 
   /* ---------- TOP VENUES RESULTS ---------- */
+  #top-venues-results{ margin-top:16px; }
   .venue-result-card{
     display:flex; justify-content:space-between; align-items:center;
     gap:12px;
@@ -844,8 +848,8 @@
     margin-top:10px;
     text-align:left;
   }
-  .venue-result-name{font-weight:600;}
-  .venue-result-meta{font-size:0.82rem; opacity:0.65;}
+  .venue-result-name{font-weight:600; color:var(--ink);}
+  .venue-result-meta{font-size:0.82rem; opacity:0.65; color:var(--ink);}
   .venue-result-rating{
     font-weight:700; color:var(--deep-teal);
     white-space:nowrap;
@@ -893,12 +897,14 @@
 </div>
 
 <nav>
-  <div class="logo"><span class="dot"></span>MUSO Adventures</div>
-  <div class="navlinks">
-    <a href="#demo">Try a Route</a>
-    <a href="#discovery">Plan It</a>
-    <a href="#users">For Every Crew</a>
-    <a href="#leaderboard">Leaderboard</a>
+  <div class="nav-inner">
+    <div class="logo"><span class="dot"></span>MUSO Adventures</div>
+    <div class="navlinks">
+      <a href="#demo">Try a Route</a>
+      <a href="#discovery">Plan It</a>
+      <a href="#users">For Every Crew</a>
+      <a href="#leaderboard">Leaderboard</a>
+    </div>
   </div>
 </nav>
 
