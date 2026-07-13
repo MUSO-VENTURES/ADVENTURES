@@ -48,11 +48,12 @@ alter table coin_transactions
 -- 0010_badges_and_adventures.sql — award_badge()/badges table already
 -- exist, this just adds the row so awardBadge('extra_stops_unlocked')
 -- resolves to a real badge instead of silently no-op-ing).
-insert into badges (key, name, description, emoji)
+insert into badges (key, name, description, emoji, sort_order)
 values (
   'extra_stops_unlocked',
   'Full Itinerary',
   'Unlocked all 5 stops on your monthly adventure.',
-  '🗺️'
+  '🧭',
+  8
 )
 on conflict (key) do nothing;
