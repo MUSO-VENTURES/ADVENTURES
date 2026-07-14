@@ -984,16 +984,37 @@
     const body = document.getElementById('adventure-body');
     body.innerHTML = '<div class="empty-state">Starting your adventure…</div>';
     try {
-      let { data: memberRows } = await supabaseClient.from('party_members').select('party_id').eq('profile_id', currentSession.user.id).limit(1);
+      // Don't trust the `currentSession` closure variable here — it's only
+      // updated by the initial getSession() call and the onAuthStateChange
+      // listener, so if the access token quietly expired (tab backgrounded
+      // for a while, refresh token stale, etc.) it can lag behind what the
+      // supabase-js client actually has. Every insert below is RLS-gated on
+      // auth.uid() = <the row's owner column>, so an unauthenticated/stale
+      // request doesn't error loudly — it just gets silently rejected with
+      // "new row violates row-level security policy", which is exactly the
+      // confusing error players were hitting. Re-fetching the session right
+      // before we need it, and bailing out with a clear message if it's
+      // missing, turns that into an actionable "please sign in again."
+      const { data: { session: freshSession } } = await supabaseClient.auth.getSession();
+      if (!freshSession) {
+        currentSession = null;
+        renderAccountBar();
+        body.innerHTML = '<div class="empty-state">Your sign-in session has expired. Please sign in again above, then pick your adventure.</div>';
+        return;
+      }
+      currentSession = freshSession;
+      const userId = freshSession.user.id;
+
+      let { data: memberRows } = await supabaseClient.from('party_members').select('party_id').eq('profile_id', userId).limit(1);
       let partyId = memberRows && memberRows[0] ? memberRows[0].party_id : null;
       if (!partyId) {
         const { data: party, error: partyErr } = await supabaseClient
-          .from('parties').insert({ name: `${currentProfile?.display_name || 'Explorer'}'s Crew`, created_by: currentSession.user.id })
+          .from('parties').insert({ name: `${currentProfile?.display_name || 'Explorer'}'s Crew`, created_by: userId })
           .select('id').single();
         if (partyErr) throw partyErr;
         partyId = party.id;
         const { error: memberErr } = await supabaseClient
-          .from('party_members').insert({ party_id: partyId, profile_id: currentSession.user.id, role: 'owner' });
+          .from('party_members').insert({ party_id: partyId, profile_id: userId, role: 'owner' });
         if (memberErr) throw memberErr;
       }
 
@@ -1009,11 +1030,19 @@
         .select('id').single();
       if (advErr) throw advErr;
 
-      try { localStorage.setItem(adventureStorageKey(currentSession.user.id), JSON.stringify({ adventureId: adventure.id })); } catch (e) {}
+      try { localStorage.setItem(adventureStorageKey(userId), JSON.stringify({ adventureId: adventure.id })); } catch (e) {}
 
       await loadItinerary(adventure.id);
     } catch (e) {
-      body.innerHTML = `<div class="empty-state">Couldn't start that adventure: ${e.message}</div>`;
+      // RLS rejections (Postgres code 42501, or PostgREST's own "row-level
+      // security" wording) mean the request wasn't recognized as coming from
+      // a signed-in user by the time it hit the database — nearly always a
+      // stale/expired session slipping through. Point the player at the fix
+      // (sign in again) instead of surfacing the raw Postgres error text.
+      const isRlsError = e.code === '42501' || /row-level security/i.test(e.message || '');
+      body.innerHTML = isRlsError
+        ? '<div class="empty-state">Your sign-in session expired partway through. Please sign in again above, then pick your adventure.</div>'
+        : `<div class="empty-state">Couldn't start that adventure: ${e.message}</div>`;
     }
   };
 
