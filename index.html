@@ -68,6 +68,30 @@
   }
   .nav-cta:hover{background:var(--deep-teal);}
 
+  /* Sign In / Sign Out is the always-visible primary account action in the
+     sticky nav — deliberately styled with the same weight as .nav-cta so
+     it reads as prominent, and kept outside the mobile "hide extra links"
+     rule below so it never disappears on a small screen. Shop stays a
+     plain, secondary nav link: it supports the game, it isn't the point
+     of the header. */
+  .nav-account{ display:flex; align-items:center; gap:8px; }
+  .nav-signin-form{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .nav-signin-form input{
+    background:var(--card); border:2px solid rgba(37,33,59,0.14); color:var(--ink);
+    padding:8px 12px; border-radius:999px; font-family:'Space Grotesk',sans-serif; font-size:0.85rem;
+    width:min(190px, 40vw);
+  }
+  .nav-signin-form input:focus{ outline:none; border-color:var(--coral); }
+  .nav-signin-form button:disabled{ background:rgba(37,33,59,0.3); cursor:default; }
+  .nav-signin-msg{ font-size:0.78rem; opacity:0.65; }
+  .nav-signed-in-msg{ font-size:0.88rem; font-weight:600; opacity:0.85; }
+  .nav-signout-link{ font-size:0.85rem; font-weight:600; opacity:0.65; text-decoration:underline; cursor:pointer; }
+  .nav-signout-link:hover{ opacity:1; }
+  @media (max-width:640px){
+    .nav-signed-in-msg{ display:none; }
+    .nav-signin-form input{ width:38vw; }
+  }
+
   /* ---------- HERO ---------- */
   .hero{
     position:relative;
@@ -939,7 +963,10 @@
       <a href="#discovery">Plan It</a>
       <a href="#users">For Every Crew</a>
       <a href="#leaderboard">Leaderboard</a>
-      <a href="/shop/" class="nav-cta">Sign In / Shop</a>
+      <a href="/shop/">Shop</a>
+      <div class="nav-account" id="nav-account">
+        <!-- Populated by JS: a Sign In button, or "Signed in as ... / Sign out" once authenticated. -->
+      </div>
     </div>
   </div>
 </nav>
@@ -1458,6 +1485,7 @@
   <p class="fine">This page is a concept preview, not a live product yet.</p>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
   const routes = {
     1: {
@@ -1849,6 +1877,100 @@
   const SUPABASE_URL = 'https://aqaezprsbcyqpnnavdpv.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxYWV6cHJzYmN5cXBubmF2ZHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MDU1NjksImV4cCI6MjA5OTM4MTU2OX0.8rpmMQSo6pgjdKfeeBFgY3lybvNVmFo4O10gjLg2kso';
   const GATE_STORAGE_KEY = 'muso_gate_accepted_v1';
+
+  // ---------- NAV SIGN IN / SIGN OUT ----------
+  // Same Supabase project + anon key as /preview/ and /shop/, so the auth
+  // session (stored in this browser's localStorage under a key derived from
+  // the project ref, not the page) is automatically shared across all three
+  // — sign in here and /preview/ already sees you as signed in, no extra
+  // wiring needed. This is deliberately separate from the age-gate/venue
+  // logic below: it's just "am I signed in," always visible in the nav.
+  const navSupabase = (SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY' && window.supabase)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  let navSession = null;
+
+  function renderNavAccount(){
+    const el = document.getElementById('nav-account');
+    if (!el || !navSupabase) return;
+    if (!navSession) {
+      el.innerHTML = `
+        <form class="nav-signin-form" onsubmit="event.preventDefault(); navSendMagicLink();">
+          <input type="email" id="nav-signin-email" placeholder="you@example.com" required>
+          <button type="submit" class="nav-cta" id="nav-signin-btn">Sign In</button>
+        </form>
+        <span class="nav-signin-msg" id="nav-signin-msg"></span>
+      `;
+      return;
+    }
+    el.innerHTML = `
+      <span class="nav-signed-in-msg">${navSession.user.email}</span>
+      <span class="nav-signout-link" onclick="navSignOut()">Sign out</span>
+    `;
+  }
+
+  let navCooldownTimer = null;
+  function navStartCooldown(seconds){
+    const btn = document.getElementById('nav-signin-btn');
+    if (!btn) return;
+    clearInterval(navCooldownTimer);
+    let remaining = seconds;
+    btn.disabled = true;
+    const tick = () => {
+      btn.textContent = `Sign In (${remaining}s)`;
+      if (remaining <= 0) { clearInterval(navCooldownTimer); btn.disabled = false; btn.textContent = 'Sign In'; return; }
+      remaining -= 1;
+    };
+    tick();
+    navCooldownTimer = setInterval(tick, 1000);
+  }
+
+  window.navSendMagicLink = async function(){
+    const input = document.getElementById('nav-signin-email');
+    const msg = document.getElementById('nav-signin-msg');
+    const email = (input.value || '').trim();
+    if (!email || !navSupabase) return;
+    msg.textContent = 'Sending link…';
+    const { error } = await navSupabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href },
+    });
+    if (!error) {
+      msg.textContent = 'Check your email for a sign-in link.';
+      navStartCooldown(60);
+      return;
+    }
+    // Same friendly-cooldown parsing as /preview/'s sign-in — Supabase's
+    // rate-limit error reads like "For security purposes, you can only
+    // request this after 28 seconds," which is confusing shown raw.
+    const waitMatch = error.message.match(/after (\d+) seconds?/i);
+    if (waitMatch) {
+      const wait = Number(waitMatch[1]);
+      msg.textContent = `You already have a link on the way — try again in ${wait}s.`;
+      navStartCooldown(wait);
+    } else {
+      msg.textContent = `Error: ${error.message}`;
+    }
+  };
+
+  window.navSignOut = async function(){
+    if (!navSupabase) return;
+    await navSupabase.auth.signOut();
+    navSession = null;
+    renderNavAccount();
+  };
+
+  if (navSupabase) {
+    navSupabase.auth.getSession().then(({ data }) => {
+      navSession = data?.session ?? null;
+      renderNavAccount();
+    });
+    navSupabase.auth.onAuthStateChange((_event, session) => {
+      navSession = session;
+      renderNavAccount();
+    });
+  }
+
   const MIN_ADULT_AGE = 21; // bars + dispensaries — no exceptions
   const MIN_NC17_AGE = 18;        // unlocks the NC-17 content rating only
   const MIN_ADULTS_ONLY_AGE = 21; // unlocks Adults Only (and everything below it)
