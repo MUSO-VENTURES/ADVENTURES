@@ -142,9 +142,14 @@
   .route-summary.visible{ display:block; }
   .route-summary b{ color:var(--deep-teal); }
 
+  .venue-cards-scroll{
+    max-height:520px; overflow-y:auto; padding-right:4px;
+  }
   .venue-cards{
     display:flex; flex-direction:column; gap:16px;
-    max-height:520px; overflow-y:auto; padding-right:4px;
+  }
+  .free-spots-note{
+    font-size:0.78rem; opacity:0.6; margin:10px 0 0; text-align:center;
   }
   .venue-card{
     background:var(--card); border-radius:18px; overflow:hidden;
@@ -293,7 +298,7 @@
   }
 
   /* ---------- LOCKED VENUE TEASER ---------- */
-  .locked-wrap{ position:relative; }
+  .locked-wrap{ position:relative; margin-top:16px; }
   .venue-card.teaser{ filter:blur(5px); pointer-events:none; user-select:none; }
   .lock-overlay{
     position:absolute; inset:0; z-index:5;
@@ -590,9 +595,13 @@
     <div id="map"></div>
     <div class="route-summary" id="route-summary"></div>
   </div>
-  <div class="locked-wrap" id="venue-locked-wrap">
+  <div class="venue-cards-scroll">
     <div class="venue-cards" id="venue-cards">
       <div class="empty-state">Venues you find will show up here with real photos, ratings, and directions.</div>
+    </div>
+    <p class="free-spots-note" id="free-spots-note" hidden></p>
+    <div class="locked-wrap" id="venue-locked-wrap" hidden>
+      <div class="venue-cards" id="venue-cards-extra"></div>
     </div>
   </div>
 </div>
@@ -627,6 +636,12 @@
   const EXTRA_STOPS_COST = 200;
   const FREE_STOP_COUNT = 3;
   const EXTRA_STOPS_STOP_COUNT = 5;
+  // The first FREE_VENUE_COUNT search results are always playable, no
+  // sign-in/level/coins required — enough to actually run an adventure.
+  // Anything beyond that stays blurred behind the existing Level 5 (earned
+  // by finishing an adventure) / coins gate, so leveling up has a real
+  // reason to bring players back.
+  const FREE_VENUE_COUNT = 5;
 
   let currentSession = null;   // Supabase auth session, or null if signed out
   let currentProfile = null;   // { level, xp, adventure_coins, unlocked_radius_miles, venues_search_unlocked, unlocked_stop_count }
@@ -859,12 +874,17 @@
     let overlay = document.getElementById('lock-overlay');
     if (overlay) overlay.remove();
 
+    // The free FREE_VENUE_COUNT cards (in #venue-cards) are never teased —
+    // only cards in the separate #venue-cards-extra section can be.
+    const extraCards = document.querySelectorAll('#venue-cards-extra .venue-card');
+    if (!extraCards.length) return; // nothing beyond the free spots this search
+
     if (lastSearchUnlocked) {
-      document.querySelectorAll('#venue-cards .venue-card').forEach(c => c.classList.remove('teaser'));
+      extraCards.forEach(c => c.classList.remove('teaser'));
       return;
     }
 
-    document.querySelectorAll('#venue-cards .venue-card').forEach(c => c.classList.add('teaser'));
+    extraCards.forEach(c => c.classList.add('teaser'));
 
     const level = currentProfile?.level ?? 1;
     const xp = currentProfile?.xp ?? 0;
@@ -876,18 +896,18 @@
     div.className = 'lock-overlay';
     div.innerHTML = currentSession ? `
       <div class="lock-icon">🔒</div>
-      <h3>Real venues are locked</h3>
-      <p>Unlock at Level ${UNLOCK_LEVEL} (you're Level ${level}) or spend ${VENUE_SEARCH_COST} Adventure Coins.</p>
+      <h3>More venues await</h3>
+      <p>Your first ${FREE_VENUE_COUNT} spots are free to play. Reach Level ${UNLOCK_LEVEL} (you're Level ${level}) — earned by finishing an adventure — or spend ${VENUE_SEARCH_COST} Adventure Coins to unlock the rest right now.</p>
       <div class="lock-progress"><div class="lock-progress-fill" style="width:${pct}%"></div></div>
       <div class="lock-actions">
         <button type="button" class="unlock-coins-btn" ${coins < VENUE_SEARCH_COST ? 'disabled' : ''} onclick="unlockFeature('venue_search')">Unlock for ${VENUE_SEARCH_COST} coins</button>
       </div>
     ` : `
       <div class="lock-icon">🔒</div>
-      <h3>Real venues are locked</h3>
-      <p>Sign in, then reach Level ${UNLOCK_LEVEL} or spend ${VENUE_SEARCH_COST} Adventure Coins to unlock.</p>
+      <h3>More venues await</h3>
+      <p>Your first ${FREE_VENUE_COUNT} spots are free to play right now. Sign in to save your progress, then level up or spend coins to unlock the rest.</p>
       <div class="lock-actions">
-        <button type="button" class="unlock-signin-btn" onclick="document.getElementById('signin-email')?.focus()">Sign in to unlock</button>
+        <button type="button" class="unlock-signin-btn" onclick="document.getElementById('signin-email')?.focus()">Sign in</button>
       </div>
     `;
     wrap.appendChild(div);
@@ -1462,6 +1482,7 @@
   let map, directionsService, directionsRenderer, startMarker;
   let venueMarkers = [];
   let currentVenues = [];
+  let usableVenues = []; // currentVenues, trimmed to the free/unlocked subset for routing
   let infoWindow;
 
   function requestGeolocation(){
@@ -1719,13 +1740,8 @@
     return '⭐'.repeat(Math.max(1, Math.min(5, full))) + ' ' + rating;
   }
 
-  function renderVenueCards(venues){
-    const el = document.getElementById('venue-cards');
-    if (!venues.length) {
-      el.innerHTML = '<div class="empty-state">No venues found in that radius/budget — try widening the search.</div>';
-      return;
-    }
-    el.innerHTML = venues.map((v, i) => `
+  function venueCardHtml(v, i){
+    return `
       <div class="venue-card" onclick="focusVenue(${i})">
         <div class="venue-photo" style="background-image:url('${v.image_url ? v.image_url.replace(/'/g, "\\'") : ''}')">
           <span class="venue-num">${i + 1}</span>
@@ -1741,7 +1757,43 @@
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+  }
+
+  function renderVenueCards(venues){
+    const el = document.getElementById('venue-cards');
+    const extraWrap = document.getElementById('venue-locked-wrap');
+    const extraEl = document.getElementById('venue-cards-extra');
+    const note = document.getElementById('free-spots-note');
+
+    if (!venues.length) {
+      el.innerHTML = '<div class="empty-state">No venues found in that radius/budget — try widening the search.</div>';
+      extraWrap.hidden = true;
+      extraEl.innerHTML = '';
+      note.hidden = true;
+      return;
+    }
+
+    // First FREE_VENUE_COUNT spots are always real and playable, no unlock
+    // needed. Anything past that renders into the separate locked section
+    // so the paywall overlay (added in updateLockedVenueUI) only covers
+    // those extra cards, not the free ones above them.
+    const free = venues.slice(0, FREE_VENUE_COUNT);
+    const extra = venues.slice(FREE_VENUE_COUNT);
+
+    el.innerHTML = free.map((v, i) => venueCardHtml(v, i)).join('');
+
+    if (extra.length) {
+      extraWrap.hidden = false;
+      extraEl.innerHTML = extra.map((v, i) => venueCardHtml(v, i + FREE_VENUE_COUNT)).join('');
+    } else {
+      extraWrap.hidden = true;
+      extraEl.innerHTML = '';
+    }
+
+    note.hidden = false;
+    note.textContent = `📍 Your first ${Math.min(FREE_VENUE_COUNT, venues.length)} spots are free to play — no sign-in or unlock required.`;
+
     updateLockedVenueUI();
   }
 
@@ -1841,8 +1893,8 @@
   }
 
   window.planRoute = function(){
-    if (!currentVenues.length) return;
-    const orderedVenues = applyFeaturedPositions(currentVenues);
+    if (!usableVenues.length) return;
+    const orderedVenues = applyFeaturedPositions(usableVenues);
     const hasPinnedStop = orderedVenues.some(v => v.featured_position);
     const waypoints = orderedVenues.slice(0, -1).map(v => ({ location: { lat: v.lat, lng: v.lng }, stopover: true }));
     const last = orderedVenues[orderedVenues.length - 1];
@@ -1923,12 +1975,17 @@
 
       lastSearchUnlocked = data.unlocked === true;
       currentVenues = (data.venues || []).filter(v => v.lat != null && v.lng != null).slice(0, 10);
+      // Routing only ever uses the free/unlocked subset — the extra, teased
+      // cards are for enticement (visible on the map as pins) but aren't
+      // playable until they're actually unlocked.
+      usableVenues = lastSearchUnlocked ? currentVenues : currentVenues.slice(0, FREE_VENUE_COUNT);
       renderVenueCards(currentVenues);
       addMarkersForVenues(currentVenues);
+      const extraCount = currentVenues.length - usableVenues.length;
       statusEl.textContent = currentVenues.length
-        ? `Found ${currentVenues.length} real, top-rated venues within ${data.searchedRadiusMiles || radius} miles.${lastSearchUnlocked ? '' : ' Sign in and unlock to see them in full.'}`
+        ? `Found ${currentVenues.length} real, top-rated venues within ${data.searchedRadiusMiles || radius} miles.${extraCount > 0 ? ` Your first ${FREE_VENUE_COUNT} are free to play — level up or unlock coins to see ${extraCount} more.` : ''}`
         : 'No venues found in that radius/budget — try widening the search.';
-      routeBtn.disabled = currentVenues.length < 2 || !lastSearchUnlocked;
+      routeBtn.disabled = usableVenues.length < 2;
     } catch (e) {
       statusEl.textContent = `Something went wrong reaching the venue search: ${e.message}`;
     } finally {
