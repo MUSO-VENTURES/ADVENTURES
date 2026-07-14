@@ -19,6 +19,10 @@
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html{scroll-behavior:smooth;}
+  html, body{
+    width:100%;
+    overflow-x:hidden;
+  }
   body{
     font-family:'Space Grotesk', sans-serif;
     background:var(--cream);
@@ -29,7 +33,7 @@
 
   nav{
     position:sticky; top:0; z-index:50;
-    display:flex; align-items:center; justify-content:space-between;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding:16px 6vw;
     background:rgba(255,248,240,0.9);
     backdrop-filter:blur(8px);
@@ -41,10 +45,18 @@
     font-size:1.3rem;
     display:flex; align-items:center; gap:8px;
     text-decoration:none;
+    flex-shrink:0;
   }
   .logo .dot{ width:10px; height:10px; border-radius:50%; background:var(--coral); display:inline-block; }
-  .back-link{ font-size:0.88rem; opacity:0.7; text-decoration:none; font-weight:500; }
+  .back-link{ font-size:0.88rem; opacity:0.7; text-decoration:none; font-weight:500; flex-shrink:0; white-space:nowrap; }
   .back-link:hover{ opacity:1; }
+  .back-link .back-full{ display:inline; }
+  .back-link .back-short{ display:none; }
+  @media (max-width:480px){
+    .logo{ font-size:1.08rem; }
+    .back-link .back-full{ display:none; }
+    .back-link .back-short{ display:inline; }
+  }
 
   header.hero{
     padding:6vh 6vw 3vh; text-align:center; max-width:760px; margin:0 auto;
@@ -64,6 +76,14 @@
   .control-group{ display:flex; flex-direction:column; gap:8px; }
   .control-group label{ font-size:0.82rem; font-weight:700; font-family:'Fredoka',sans-serif; }
   .pill-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  @media (max-width:640px){
+    .controls-bar{ flex-direction:column; align-items:stretch; gap:18px; }
+    .control-group{ width:100%; }
+    .pill-row{ justify-content:space-between; }
+    .pill-row .pill-btn{ flex:1; text-align:center; }
+    .radius-row{ width:100%; min-width:0; }
+    .find-btn{ width:100%; }
+  }
   .pill-btn{
     background:var(--card); border:2px solid rgba(37,33,59,0.12);
     padding:8px 16px; border-radius:999px; font-weight:600; font-size:0.85rem;
@@ -71,7 +91,26 @@
   }
   .pill-btn.selected{ background:var(--coral); border-color:var(--coral); color:#fff; }
   .radius-row{ display:flex; align-items:center; gap:12px; min-width:220px; }
-  .radius-row input[type="range"]{ flex:1; accent-color:var(--coral); }
+  .radius-row input[type="range"]{
+    flex:1; accent-color:var(--coral);
+    -webkit-appearance:none; appearance:none;
+    height:8px; border-radius:999px; outline:none; cursor:pointer; background:rgba(37,33,59,0.12);
+  }
+  .radius-row input[type="range"]::-webkit-slider-runnable-track{
+    height:8px; border-radius:999px; background:transparent;
+  }
+  .radius-row input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:18px; height:18px; border-radius:50%; margin-top:-5px;
+    background:var(--coral); border:3px solid #fff; box-shadow:0 1px 4px rgba(37,33,59,0.35); cursor:pointer;
+  }
+  .radius-row input[type="range"]::-moz-range-track{
+    height:8px; border-radius:999px; background:transparent;
+  }
+  .radius-row input[type="range"]::-moz-range-thumb{
+    width:18px; height:18px; border-radius:50%; border:3px solid #fff;
+    background:var(--coral); box-shadow:0 1px 4px rgba(37,33,59,0.35); cursor:pointer;
+  }
   .radius-row span{ font-weight:700; min-width:56px; }
   .find-btn{
     background:var(--coral); color:#fff; border:none; padding:12px 26px;
@@ -199,11 +238,11 @@
     max-width:1200px; margin:0 auto; padding:0 6vw 2vh;
     display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap;
   }
-  .signin-form{ display:flex; gap:8px; align-items:center; }
+  .signin-form{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .signin-form input{
     background:var(--card); border:2px solid rgba(37,33,59,0.14); color:var(--ink);
     padding:8px 12px; border-radius:999px; font-family:'Space Grotesk',sans-serif; font-size:0.85rem;
-    width:200px;
+    width:min(200px, 52vw);
   }
   .signin-form input:focus{ outline:none; border-color:var(--coral); }
   .signin-btn{
@@ -233,10 +272,11 @@
 
   /* ---------- RADIUS UNLOCK ---------- */
   .radius-tier-markers{
-    display:flex; gap:4px; margin-top:6px;
+    position:relative; height:20px; margin-top:6px;
   }
   .radius-tier-marker{
-    flex:1; text-align:center; padding:3px 4px; border-radius:6px;
+    position:absolute; top:0; transform:translateX(-50%);
+    text-align:center; padding:2px 6px; border-radius:6px;
     background:rgba(37,33,59,0.05); opacity:0.4;
     font-size:0.68rem; font-weight:600; white-space:nowrap;
     transition:opacity .2s, background .2s;
@@ -489,7 +529,7 @@
 
 <nav>
   <a class="logo" href="/"><span class="dot"></span>MUSO Adventures</a>
-  <a class="back-link" href="/">&larr; Back to main site</a>
+  <a class="back-link" href="/">&larr; <span class="back-full">Back to main site</span><span class="back-short">Back</span></a>
 </nav>
 
 <div class="account-bar" id="account-bar">
@@ -523,13 +563,13 @@
   <div class="control-group">
     <label>Search radius</label>
     <div class="radius-row">
-      <input type="range" id="radius-slider" min="1" max="30" value="15">
+      <input type="range" id="radius-slider" min="1" max="100" value="15" data-cap="30">
       <span id="radius-value">15 mi</span>
     </div>
     <div class="radius-tier-markers" id="radius-tier-markers">
-      <div class="radius-tier-marker reached" data-tier="free">≤30mi Free</div>
-      <div class="radius-tier-marker" data-tier="unlock">🔓 ≤50mi</div>
-      <div class="radius-tier-marker" data-tier="exclusive">⭐ ≤100mi</div>
+      <div class="radius-tier-marker reached" data-tier="free" style="left:15%;">≤30mi Free</div>
+      <div class="radius-tier-marker" data-tier="unlock" style="left:40%;">🔓 50mi</div>
+      <div class="radius-tier-marker" data-tier="exclusive" style="left:75%;">⭐ 100mi</div>
     </div>
     <div class="radius-lock-hint" id="radius-lock-hint" hidden>
       🔒 Unlocks up to 50 mi — <button type="button" class="radius-unlock-btn" onclick="unlockFeature('radius')">150 coins</button>
@@ -640,7 +680,7 @@
       el.innerHTML = `
         <form class="signin-form" onsubmit="event.preventDefault(); sendMagicLink();">
           <input type="email" id="signin-email" placeholder="you@example.com" required>
-          <button type="submit" class="signin-btn">Sign in</button>
+          <button type="submit" class="signin-btn" id="signin-submit-btn">Sign in</button>
         </form>
         <a href="/shop/" class="buy-coins-btn" style="text-decoration:none; display:inline-block;">Shop</a>
         <span class="signin-msg" id="signin-msg"></span>
@@ -677,6 +717,29 @@
     currentBadgeKeys = new Set((data || []).map(r => r.badge_key));
   }
 
+  let signinCooldownTimer = null;
+
+  function startSigninCooldown(seconds) {
+    const btn = document.getElementById('signin-submit-btn');
+    const msg = document.getElementById('signin-msg');
+    if (!btn) return;
+    clearInterval(signinCooldownTimer);
+    let remaining = seconds;
+    btn.disabled = true;
+    const tick = () => {
+      btn.textContent = `Sign in (${remaining}s)`;
+      if (remaining <= 0) {
+        clearInterval(signinCooldownTimer);
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+        return;
+      }
+      remaining -= 1;
+    };
+    tick();
+    signinCooldownTimer = setInterval(tick, 1000);
+  }
+
   window.sendMagicLink = async function () {
     const emailInput = document.getElementById('signin-email');
     const msg = document.getElementById('signin-msg');
@@ -687,7 +750,24 @@
       email,
       options: { emailRedirectTo: window.location.href },
     });
-    msg.textContent = error ? `Error: ${error.message}` : 'Check your email for a sign-in link.';
+    if (!error) {
+      msg.textContent = 'Check your email for a sign-in link.';
+      startSigninCooldown(60);
+      return;
+    }
+    // Supabase's rate-limit error reads like "For security purposes, you can
+    // only request this after 28 seconds" — parse the seconds out of it and
+    // show a friendly countdown instead of the raw API message, since
+    // players kept re-clicking and seeing this as a broken sign-in rather
+    // than an expected cooldown.
+    const waitMatch = error.message.match(/after (\d+) seconds?/i);
+    if (waitMatch) {
+      const wait = Number(waitMatch[1]);
+      msg.textContent = `You already have a link on the way — you can request another in ${wait}s.`;
+      startSigninCooldown(wait);
+    } else {
+      msg.textContent = `Error: ${error.message}`;
+    }
   };
 
   window.signOut = async function () {
@@ -750,11 +830,15 @@
     const valueEl = document.getElementById('radius-value');
     const hint = document.getElementById('radius-lock-hint');
 
-    slider.max = cap;
+    // The slider element itself always keeps max="100" so the full range is
+    // visible on the track; `cap` (stored on the element) is what actually
+    // limits how far a player can drag it — see paintRadiusTrack().
+    slider.dataset.cap = cap;
     if (Number(slider.value) > cap) {
       slider.value = cap;
       valueEl.textContent = slider.value + ' mi';
     }
+    if (typeof paintRadiusTrack === 'function') paintRadiusTrack();
 
     // Only the 30->50 step is ever purchasable/earnable here. Once a
     // player is at 50mi there's nothing left to buy — 100mi is invite-only.
@@ -1547,8 +1631,25 @@
       btn.classList.add('selected');
     });
   });
+  function paintRadiusTrack() {
+    const slider = document.getElementById('radius-slider');
+    const cap = Number(slider.dataset.cap || 30);
+    const val = Number(slider.value);
+    const valPct = (val / 100) * 100;
+    const capPct = (cap / 100) * 100;
+    slider.style.background = `linear-gradient(to right,
+      var(--coral) 0%, var(--coral) ${valPct}%,
+      rgba(255,107,107,0.3) ${valPct}%, rgba(255,107,107,0.3) ${capPct}%,
+      rgba(37,33,59,0.12) ${capPct}%, rgba(37,33,59,0.12) 100%)`;
+  }
   document.getElementById('radius-slider').addEventListener('input', function(){
+    // The track always spans the full 1-100mi range so players can see what
+    // 50mi/100mi look like, but dragging past their unlocked cap snaps back
+    // — the locked zone is visible, not draggable.
+    const cap = Number(this.dataset.cap || 30);
+    if (Number(this.value) > cap) this.value = cap;
     document.getElementById('radius-value').textContent = this.value + ' mi';
+    paintRadiusTrack();
   });
 
   // ---------- MAP ----------
