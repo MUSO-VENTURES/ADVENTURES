@@ -320,6 +320,47 @@
   }
   .checkin-btn:disabled{ opacity:0.5; cursor:default; }
 
+  .photo-ready-badge{
+    display:inline-flex; align-items:center; gap:6px; background:rgba(58,175,150,0.14);
+    color:var(--deep-teal); border:none; border-radius:999px; padding:7px 14px; font-size:0.78rem;
+    font-weight:700; font-family:'Fredoka',sans-serif; cursor:pointer;
+  }
+  .photo-add-btn{
+    background:transparent; border:2px solid var(--deep-teal); color:var(--deep-teal);
+    padding:7px 14px; border-radius:999px; font-weight:700; font-family:'Fredoka',sans-serif;
+    font-size:0.78rem; cursor:pointer;
+  }
+
+  /* ---------- CHECK-IN PHOTO BOOTH ---------- */
+  .photobooth-overlay{
+    position:fixed; inset:0; z-index:2100; background:rgba(37,33,59,0.9);
+    display:flex; align-items:center; justify-content:center; padding:5vw;
+  }
+  .photobooth-overlay[hidden]{ display:none; }
+  .photobooth-card{
+    background:var(--card); border-radius:24px; max-width:420px; width:100%;
+    padding:22px 22px 26px; box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  }
+  .photobooth-header{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'Fredoka',sans-serif; font-weight:700; margin-bottom:14px; font-size:1.02rem;
+  }
+  .pb-close{ cursor:pointer; opacity:0.55; font-size:1.15rem; line-height:1; }
+  .pb-close:hover{ opacity:1; }
+  .pb-stage{
+    position:relative; width:100%; aspect-ratio:3/4; background:#111; border-radius:16px;
+    overflow:hidden; margin-bottom:12px;
+  }
+  .pb-stage video, .pb-stage img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .pb-hint{ font-size:0.78rem; opacity:0.7; line-height:1.45; margin-bottom:16px; }
+  .pb-controls{ display:flex; gap:10px; }
+  .pb-btn{
+    flex:1; border:none; border-radius:999px; padding:12px; font-weight:700;
+    font-family:'Fredoka',sans-serif; font-size:0.85rem; cursor:pointer;
+  }
+  .pb-btn.primary{ background:var(--coral); color:#fff; }
+  .pb-btn.secondary{ background:rgba(37,33,59,0.08); color:var(--ink); }
+
   /* Tier-level cap on total stops in a route — distinct from
      .itinerary-stop.locked, which means "not reached yet in sequence." */
   .stop-tier-lock{
@@ -414,6 +455,33 @@
       <button type="button" class="celebration-btn secondary" onclick="dismissCelebration()">Nice!</button>
     </div>
     <div class="celebration-count" id="celeb-count"></div>
+  </div>
+</div>
+
+<div class="photobooth-overlay" id="photobooth-overlay" hidden>
+  <div class="photobooth-card">
+    <div class="photobooth-header">
+      <span>📸 Check-in Photo</span>
+      <span class="pb-close" onclick="closePhotoBooth()">&times;</span>
+    </div>
+    <div class="pb-stage">
+      <video id="pb-video" autoplay playsinline muted></video>
+      <img id="pb-preview-img" style="display:none;" alt="Captured photo preview">
+    </div>
+    <canvas id="pb-canvas" hidden></canvas>
+    <div class="pb-hint">
+      This photo counts for <strong id="pb-stop-name">this stop</strong> — worth
+      +<span id="pb-coin-amt"></span> Adventure Coins. Take as many as you like while you're
+      here; once you check in (or move on to the next stop) this photo window closes.
+    </div>
+    <div class="pb-controls" id="pb-controls-live">
+      <button type="button" class="pb-btn secondary" onclick="switchCamera()">🔄 Flip Camera</button>
+      <button type="button" class="pb-btn primary" onclick="capturePhoto()">📸 Capture</button>
+    </div>
+    <div class="pb-controls" id="pb-controls-preview" style="display:none;">
+      <button type="button" class="pb-btn secondary" onclick="retakePhoto()">&#8617; Retake</button>
+      <button type="button" class="pb-btn primary" onclick="useCapturedPhoto()">&check; Use This Photo</button>
+    </div>
   </div>
 </div>
 
@@ -893,13 +961,37 @@
     // sitting behind the tier lock would see a misleading "you're done."
     const allDone = allVisibleDone && !stopsLocked;
 
+    // A captured-but-not-yet-submitted photo only ever counts for the stop
+    // that's currently active — once the itinerary moves past a stop, drop
+    // any leftover capture for it so it can never be replayed onto a later
+    // check-in.
+    const currentStopId = firstIncompleteIdx !== -1 ? stops[firstIncompleteIdx].id : null;
+    Object.keys(pendingPhotoCaptures).forEach((stopId) => {
+      if (stopId !== currentStopId) {
+        URL.revokeObjectURL(pendingPhotoCaptures[stopId].previewUrl);
+        delete pendingPhotoCaptures[stopId];
+      }
+    });
+
     const rows = stops.map((s, i) => {
       const isDone = doneIds.has(s.id);
       const isCurrent = i === firstIncompleteIdx;
       const locked = !isDone && !isCurrent;
       let status;
       if (isDone) status = `<span class="is-status" style="color:var(--deep-teal);">✓ Checked in</span>`;
-      else if (isCurrent) status = `<button type="button" class="checkin-btn" onclick="checkInStop('${s.id}')">I'm here — Check in</button>`;
+      else if (isCurrent) {
+        const safeName = (s.name || 'this stop').replace(/'/g, "\\'");
+        const hasPhoto = !!pendingPhotoCaptures[s.id];
+        const photoControl = hasPhoto
+          ? `<span class="photo-ready-badge" onclick="openPhotoBooth('${s.id}', '${safeName}')">📸 Photo ready &check;</span>`
+          : `<button type="button" class="photo-add-btn" onclick="openPhotoBooth('${s.id}', '${safeName}')">📸 Add photo (+${CHECKIN_PHOTO_COINS} coins)</button>`;
+        status = `
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+            ${photoControl}
+            <button type="button" class="checkin-btn" onclick="checkInStop('${s.id}')">I'm here — Check in</button>
+          </div>
+        `;
+      }
       else status = `<span class="is-status" style="opacity:0.5;">🔒 Locked</span>`;
       return `
         <div class="itinerary-stop ${isDone ? 'done' : ''} ${locked ? 'locked' : ''}">
@@ -947,15 +1039,43 @@
   window.checkInStop = async function (routeStopId) {
     if (!activeAdventure || !currentSession) return;
     const token = await getAccessToken();
+
+    // If the player captured a photo for this stop, upload it first so we
+    // can pass its public URL along with the check-in — the checkin
+    // function only awards the photo coin bonus when photoUrl is present
+    // on *this exact* request, so there's no way to attach a photo after
+    // the fact once the check-in row already exists.
+    let photoUrl = null;
+    const pending = pendingPhotoCaptures[routeStopId];
+    if (pending) {
+      try {
+        showToast('Uploading your photo…');
+        const path = `${currentSession.user.id}/${activeAdventure.adventureId}_${routeStopId}_${Date.now()}.jpg`;
+        const { error: uploadError } = await supabaseClient.storage
+          .from('checkin-photos')
+          .upload(path, pending.blob, { contentType: 'image/jpeg', upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: pub } = supabaseClient.storage.from('checkin-photos').getPublicUrl(path);
+        photoUrl = pub.publicUrl;
+      } catch (e) {
+        alert("Couldn't upload your photo, so this check-in won't earn coins: " + e.message);
+        photoUrl = null;
+      }
+    }
+
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/checkin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
-        body: JSON.stringify({ adventureId: activeAdventure.adventureId, routeStopId }),
+        body: JSON.stringify({ adventureId: activeAdventure.adventureId, routeStopId, photoUrl }),
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Could not check in.'); return; }
 
+      if (pendingPhotoCaptures[routeStopId]) {
+        URL.revokeObjectURL(pendingPhotoCaptures[routeStopId].previewUrl);
+        delete pendingPhotoCaptures[routeStopId];
+      }
       activeAdventure.doneIds.add(routeStopId);
       renderItinerary();
 
@@ -965,14 +1085,123 @@
       updateRadiusLockUI();
 
       const progress = data.progress || {};
+      let toastMsg = '';
+      if (progress.xpGained) {
+        toastMsg = progress.leveledUp
+          ? `🎉 +${progress.xpGained} XP — Level Up! Now Level ${progress.newLevel}`
+          : `+${progress.xpGained} XP`;
+      }
+      if (progress.coinsGained) {
+        toastMsg = toastMsg ? `${toastMsg}  •  📸 +${progress.coinsGained} coins` : `📸 +${progress.coinsGained} Adventure Coins!`;
+      }
       if (progress.newBadges && progress.newBadges.length) {
         queueCelebrations(progress.newBadges);
-      } else if (progress.xpGained) {
-        showXpToast(progress.xpGained, progress.leveledUp, progress.newLevel);
+      } else if (toastMsg) {
+        showToast(toastMsg);
       }
     } catch (e) {
       alert('Could not reach the check-in service: ' + e.message);
     }
+  };
+
+  // ---------- CHECK-IN PHOTO BOOTH ----------
+  const CHECKIN_PHOTO_COINS = 20; // must match muso-backend/supabase/functions/checkin/index.ts
+  let pendingPhotoCaptures = {};  // routeStopId -> { blob, previewUrl }
+  let pbStream = null;
+  let pbFacingMode = 'environment';
+  let pbTargetStopId = null;
+  let pbCapturedBlob = null;
+
+  window.openPhotoBooth = async function (routeStopId, stopName) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("This browser doesn't support camera access. Try a modern mobile or desktop browser.");
+      return;
+    }
+    pbTargetStopId = routeStopId;
+    document.getElementById('pb-stop-name').textContent = stopName || 'this stop';
+    document.getElementById('pb-coin-amt').textContent = CHECKIN_PHOTO_COINS;
+    document.getElementById('photobooth-overlay').removeAttribute('hidden');
+    await pbStartCamera();
+  };
+
+  async function pbStartCamera() {
+    pbStopStream();
+    const video = document.getElementById('pb-video');
+    const img = document.getElementById('pb-preview-img');
+    img.style.display = 'none';
+    video.style.display = 'block';
+    document.getElementById('pb-controls-live').style.display = 'flex';
+    document.getElementById('pb-controls-preview').style.display = 'none';
+    try {
+      pbStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: pbFacingMode },
+        audio: false,
+      });
+      video.srcObject = pbStream;
+    } catch (e) {
+      alert("Couldn't access your camera: " + e.message + "\n\nMake sure you've allowed camera access for this site, then try again.");
+      closePhotoBooth();
+    }
+  }
+
+  function pbStopStream() {
+    if (pbStream) {
+      pbStream.getTracks().forEach(t => t.stop());
+      pbStream = null;
+    }
+  }
+
+  window.switchCamera = async function () {
+    pbFacingMode = pbFacingMode === 'environment' ? 'user' : 'environment';
+    await pbStartCamera();
+  };
+
+  window.capturePhoto = function () {
+    const video = document.getElementById('pb-video');
+    const canvas = document.getElementById('pb-canvas');
+    canvas.width = video.videoWidth || 720;
+    canvas.height = video.videoHeight || 960;
+    const ctx = canvas.getContext('2d');
+    // The front camera preview is mirrored for a natural selfie feel — flip
+    // it back to normal when saving so the actual photo isn't backwards.
+    if (pbFacingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      pbCapturedBlob = blob;
+      const img = document.getElementById('pb-preview-img');
+      img.src = URL.createObjectURL(blob);
+      img.style.display = 'block';
+      video.style.display = 'none';
+      document.getElementById('pb-controls-live').style.display = 'none';
+      document.getElementById('pb-controls-preview').style.display = 'flex';
+      pbStopStream();
+    }, 'image/jpeg', 0.85);
+  };
+
+  window.retakePhoto = function () {
+    pbCapturedBlob = null;
+    pbStartCamera();
+  };
+
+  window.useCapturedPhoto = function () {
+    if (!pbCapturedBlob || !pbTargetStopId) return;
+    const previewUrl = URL.createObjectURL(pbCapturedBlob);
+    if (pendingPhotoCaptures[pbTargetStopId]) {
+      URL.revokeObjectURL(pendingPhotoCaptures[pbTargetStopId].previewUrl);
+    }
+    pendingPhotoCaptures[pbTargetStopId] = { blob: pbCapturedBlob, previewUrl };
+    closePhotoBooth();
+    renderItinerary();
+  };
+
+  window.closePhotoBooth = function () {
+    pbStopStream();
+    pbCapturedBlob = null;
+    pbTargetStopId = null;
+    document.getElementById('photobooth-overlay').setAttribute('hidden', '');
   };
 
   // ---------- CELEBRATIONS + PRAISE COPY ----------
