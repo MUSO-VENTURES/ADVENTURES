@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MUSO Adventures — Home Concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#fffaf3;
+    --header-top:#ffe9cf;
+    --card-bg:rgba(255,255,255,0.6);
+    --card-border:rgba(255,255,255,0.5);
+    --text:#2a2438;
+    --primary:#e8503f;
+    --secondary:#f2994a;
+    --tertiary:#0ea5a0;
+    --tertiary-deep:#0b6e68;
+    --quaternary:#5b4b8a;
+    --quaternary-light:#8a76c9;
+    --raised-bg:#2a2438;
+    --raised-fg:#ffffff;
+    --shadow-rgb:42,36,56;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Nunito', sans-serif;
+    background:#e2ddd3;
+    color:var(--text);
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:4vh 20px;
+  }
+  h1,h2,h3,.display{ font-family:'Fredoka', sans-serif; }
+  .page-note{
+    position:fixed; top:16px; left:16px; font-size:0.8rem; opacity:0.55;
+    font-family:'Nunito',sans-serif; max-width:230px; line-height:1.4; color:#2a2438;
+  }
+
+  /* ---------- TIME CONTROL ---------- */
+  .time-control{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    background:#fff; border-radius:20px; padding:14px 20px; width:min(420px, 92vw);
+    box-shadow:0 12px 32px rgba(0,0,0,0.18); z-index:100; font-family:'Nunito',sans-serif;
+    transition:transform .3s ease, opacity .3s ease;
+  }
+  .time-control.hidden{
+    transform:translateX(-50%) translateY(calc(100% + 20px));
+    opacity:0; pointer-events:none;
+  }
+  .time-control-close{
+    position:absolute; top:10px; right:10px; width:26px; height:26px; border-radius:50%;
+    border:none; background:#f2ede4; color:#2a2438; font-size:0.9rem; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .time-control-close:hover{ background:#e8e0d2; }
+  .time-control-reopen{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(0);
+    background:#2a2438; color:#fff; border:none; border-radius:999px;
+    padding:10px 18px; font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.82rem;
+    box-shadow:0 12px 28px rgba(0,0,0,0.25); z-index:100; cursor:pointer;
+    display:flex; align-items:center; gap:6px;
+    transition:transform .3s ease, opacity .3s ease;
+  }
+  .time-control-reopen.hidden{
+    transform:translateX(-50%) translateY(calc(100% + 20px)); opacity:0; pointer-events:none;
+  }
+  .time-control-eyebrow{
+    font-size:0.66rem; font-weight:800; letter-spacing:0.06em; color:#9a9188;
+    margin-bottom:8px; text-align:center; padding-right:20px;
+  }
+  .time-control-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .time-control-label{ font-size:0.8rem; font-weight:700; color:#2a2438; }
+  .time-control-value{ font-size:0.82rem; font-weight:700; color:#e8503f; font-family:'Fredoka',sans-serif; flex-shrink:0; }
+  .time-slider{ width:100%; accent-color:#e8503f; }
+  .time-presets{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .time-preset-btn{
+    flex:1; min-width:70px; padding:7px 8px; border-radius:10px; border:none;
+    background:#f2ede4; color:#2a2438; font-size:0.72rem; font-weight:700; cursor:pointer;
+    font-family:'Nunito',sans-serif; transition:background .15s;
+  }
+  .time-preset-btn:hover{ background:#e8e0d2; }
+  .time-preset-btn.play{ background:#2a2438; color:#fff; }
+
+  .phone{
+    width:390px; max-width:100%; height:844px; max-height:80vh;
+    background:var(--bg); border-radius:44px; overflow:hidden;
+    box-shadow:0 30px 70px rgba(0,0,0,0.35), 0 0 0 10px #1a1622;
+    position:relative; display:flex; flex-direction:column;
+    transition:background-color .35s ease;
+  }
+  .scroll-area{ flex:1; min-height:0; overflow-y:auto; padding-bottom:100px; }
+  .scroll-area::-webkit-scrollbar{ display:none; }
+
+  /* ---------- STATUS BAR ----------
+     Always the topmost thing on the stage — higher than the expanding
+     profile sheet (60) and anything else short of a true full-screen
+     modal — so the time/battery readout is never breached, even if the
+     sheet's expand math is ever a pixel off. */
+  .statusbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px 4px; font-weight:700; font-size:0.85rem; color:var(--text);
+    position:relative; z-index:65; transition:color .35s ease;
+  }
+
+  /* ---------- ROKU-STYLE PARALLAX HEADER ----------
+     Real illustrated layers (sky / buildings-street / people) standing in
+     for the old abstract gradient+orb sky band — same "Expedition Hub"
+     scene as parallax-concept.html, now doubling as the home header.
+     Auto-drifts ambiently and is drag/swipe-able; greeting content sits
+     on top behind a scrim for legibility. Day art only for now — night
+     art is a follow-up, so the time-of-day system no longer touches this
+     band directly (it still drives every other card/text color). */
+  .sky-band{
+    position:relative; z-index:1; height:230px; overflow:hidden; background:#bfe0f5;
+  }
+  .star{ position:absolute; border-radius:50%; background:#fff; }
+  .px-layers{ position:absolute; inset:0; z-index:1; }
+  .px-layer{
+    position:absolute; top:0; left:0; height:100%; width:auto; max-width:none;
+    will-change:transform; pointer-events:none; display:block;
+  }
+  .px-scroll{
+    position:absolute; inset:0; z-index:2; overflow-x:auto; overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+  }
+  .px-scroll::-webkit-scrollbar{ display:none; }
+  .px-spacer{ height:1px; }
+  /* Blends the header's hard bottom edge into the page background below
+     it instead of darkening the whole scene for text legibility (the
+     greeting text that used to need that scrim now lives below the
+     header, not on top of it — see .home-greet-section). Fully
+     transparent until the last 50px, then fades to the same themed
+     background as the rest of the interface, so day/night switches
+     carry through automatically via var(--bg). */
+  .sky-band-scrim{
+    position:absolute; inset:0; z-index:3; pointer-events:none;
+    background:linear-gradient(180deg, transparent 0%, transparent calc(100% - 65px), var(--bg) 100%);
+  }
+  .home-header-inner{
+    position:absolute; inset:0; padding:14px 22px 0; z-index:4;
+  }
+
+  /* Greeting + weather now live in normal page flow below the header
+     (not overlaid on the parallax image), so they use the themed text
+     color instead of the old fixed white + drop-shadow treatment. */
+  .home-greet-section h1{ font-size:1.3rem; color:var(--text); transition:color .35s ease; }
+  .home-greet-section .greet-sub{ opacity:0.7; font-size:0.9rem; margin-top:2px; color:var(--text); transition:color .35s ease; }
+  .home-greet-section .weather-line{
+    display:flex; align-items:center; gap:6px; margin-top:10px; font-size:0.8rem;
+    opacity:0.7; color:var(--text); font-weight:600; transition:color .35s ease;
+  }
+
+  /* Fixed frosted-white style, not the time-driven --card-bg/--text —
+     same reasoning as the greeting text above: this sits on the parallax
+     scrim now, not the old gradient, so it stays constant regardless of
+     the time-of-day slider. */
+  /* Padding/icon size scaled to 75% of the original (13px/34px) so the
+     bar's overall height comes down to ~75% too, without shrinking the
+     input text itself. */
+  .search-bar{
+    margin-top:1px; background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.5);
+    backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-radius:12px; padding:10px 16px;
+    display:flex; align-items:center; gap:10px;
+    box-shadow:0 6px 18px rgba(20,16,32,0.25);
+  }
+  .search-bar input{
+    border:none; outline:none; flex:1; font-family:'Nunito',sans-serif;
+    font-size:0.92rem; background:transparent; color:#2a2438;
+  }
+  .search-bar input::placeholder{ color:#2a2438; opacity:0.4; }
+  .icon-btn{
+    width:26px; height:26px; border-radius:8px; display:flex; align-items:center;
+    justify-content:center; background:rgba(255,247,237,0.9); flex-shrink:0; color:#2a2438;
+  }
+
+  /* ---------- AI PICK CARD ---------- */
+  .section{ padding:22px 22px 4px; position:relative; z-index:1; }
+
+  /* ---------- AMBIENT BACKLIGHT + PAGE-WIDE STARS ----------
+     Soft blurred color blobs behind the panels (shows through the
+     frosted-glass cards) plus a scattered star layer across the whole
+     view, not just the sky band — both fade in as it gets dark. */
+  #view-home{ position:relative; }
+  .phone-glow{
+    position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+    opacity:0; transition:opacity .5s ease;
+  }
+  .phone-glow .blob{ position:absolute; border-radius:50%; filter:blur(64px); }
+  .phone-glow .b1{ width:260px; height:260px; top:60px; left:-70px; background:var(--primary); opacity:0.55; }
+  .phone-glow .b2{ width:240px; height:240px; top:560px; right:-80px; background:var(--quaternary); opacity:0.5; }
+  .phone-glow .b3{ width:220px; height:220px; top:1000px; left:10px; background:var(--tertiary); opacity:0.4; }
+  .phone-glow .b4{ width:220px; height:220px; top:1500px; right:-60px; background:var(--secondary); opacity:0.4; }
+  .page-stars{
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+    opacity:0; transition:opacity .5s ease;
+  }
+  .page-stars .star{ position:absolute; border-radius:50%; background:#fff; }
+  .ai-pick{
+    position:relative; border-radius:22px; overflow:hidden; height:220px;
+    background:linear-gradient(135deg, var(--primary), var(--secondary) 55%, var(--quaternary));
+    display:flex; flex-direction:column; justify-content:flex-end; padding:20px;
+    color:#fff; box-shadow:0 14px 30px rgba(var(--shadow-rgb),0.3);
+    transition:background .35s ease;
+  }
+  .ai-pick::before{
+    content:""; position:absolute; inset:0;
+    background:
+      radial-gradient(circle at 85% 15%, rgba(255,255,255,0.25), transparent 45%),
+      linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0) 60%);
+  }
+  .ai-pick > *{ position:relative; z-index:1; }
+  .ai-tag{
+    display:inline-flex; align-items:center; gap:6px; align-self:flex-start;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(6px);
+    padding:6px 12px; border-radius:999px; font-size:0.72rem; font-weight:700;
+    margin-bottom:auto;
+  }
+  .ai-pick h2{ font-size:1.4rem; margin-bottom:4px; }
+  .ai-pick p{ font-size:0.85rem; opacity:0.92; line-height:1.4; max-width:280px; }
+  .ai-pick .meta{ display:flex; align-items:center; gap:10px; margin-top:10px; font-size:0.8rem; font-weight:700; }
+
+  /* ---------- REAL GAMEPLAY (adventure section) ---------- */
+  #adventure-signed-out{ height:auto; min-height:200px; padding:22px 20px; }
+  .av-signin-form{ display:flex; gap:8px; margin-top:14px; }
+  .av-signin-form input{
+    flex:1; min-width:0; border:none; border-radius:999px; padding:10px 16px;
+    font-family:'Nunito',sans-serif; font-size:0.9rem; background:rgba(255,255,255,0.92); color:#2a2438;
+  }
+  .av-signin-form input:focus{ outline:2px solid rgba(255,255,255,0.7); }
+  .av-signin-btn{
+    border:none; border-radius:999px; padding:10px 18px; background:#2a2438; color:#fff;
+    font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.85rem; cursor:pointer; flex-shrink:0;
+  }
+  .av-signin-btn:disabled{ opacity:0.6; cursor:default; }
+  .av-signin-msg{ font-size:0.78rem; opacity:0.85; margin-top:8px; min-height:1.1em; }
+
+  .empty-state{ text-align:center; opacity:0.6; font-size:0.9rem; padding:24px 10px; }
+
+  .route-pick-card{
+    background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    border-radius:18px; padding:16px 18px; margin-bottom:12px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    box-shadow:0 6px 18px rgba(var(--shadow-rgb),0.1);
+  }
+  .rp-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1rem; color:var(--text); }
+  .rp-desc{ font-size:0.82rem; opacity:0.7; margin-top:2px; color:var(--text); max-width:200px; }
+  .rp-meta{ font-size:0.75rem; opacity:0.6; margin-top:6px; color:var(--text); }
+  .start-adv-btn{
+    flex-shrink:0; border:none; border-radius:999px; padding:10px 16px; background:var(--primary); color:#fff;
+    font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.82rem; cursor:pointer;
+  }
+
+  .adventure-complete-banner{
+    background:linear-gradient(135deg, var(--tertiary), var(--tertiary-deep)); color:#fff; text-align:center;
+    font-family:'Fredoka',sans-serif; font-weight:700; padding:12px; border-radius:14px; margin-bottom:14px;
+  }
+  .itinerary-list{
+    background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    border-radius:18px; padding:6px 16px; box-shadow:0 6px 18px rgba(var(--shadow-rgb),0.1);
+  }
+  .itinerary-stop{ display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(var(--shadow-rgb),0.1); }
+  .itinerary-stop:last-child{ border-bottom:none; }
+  .itinerary-stop.done{ opacity:0.6; }
+  .is-emoji{ font-size:1.4rem; flex-shrink:0; }
+  .is-body{ flex:1; min-width:0; }
+  .is-name{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.92rem; color:var(--text); }
+  .is-desc{ font-size:0.78rem; opacity:0.65; margin-top:2px; color:var(--text); }
+  .is-status{ font-size:0.78rem; font-weight:700; flex-shrink:0; }
+  .checkin-btn{
+    border:none; border-radius:999px; padding:9px 14px; background:var(--primary); color:#fff;
+    font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.78rem; cursor:pointer; white-space:nowrap;
+  }
+  .photo-add-btn{
+    border:2px solid var(--primary); border-radius:999px; padding:6px 12px; background:transparent; color:var(--primary);
+    font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.72rem; cursor:pointer; white-space:nowrap;
+  }
+  .photo-ready-badge{ font-size:0.72rem; font-weight:700; color:var(--tertiary-deep); white-space:nowrap; }
+  .stop-tier-lock{
+    display:flex; align-items:center; gap:10px; margin-top:14px; padding:14px 16px;
+    background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px;
+  }
+  .stop-tier-lock-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.85rem; color:var(--text); }
+  .stop-tier-lock-desc{ font-size:0.74rem; opacity:0.65; margin-top:2px; color:var(--text); }
+  .unlock-coins-btn{
+    flex-shrink:0; border:none; border-radius:999px; padding:9px 14px; background:var(--tangerine, var(--secondary)); color:#fff;
+    font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.76rem; cursor:pointer;
+  }
+  .unlock-coins-btn:disabled{ opacity:0.5; cursor:default; }
+
+  /* ---------- PHOTO BOOTH ---------- */
+  .pb-overlay{
+    position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.85);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;
+  }
+  .pb-overlay[hidden]{ display:none; }
+  .pb-header{ color:#fff; text-align:center; margin-bottom:14px; font-family:'Nunito',sans-serif; }
+  .pb-header b{ font-family:'Fredoka',sans-serif; }
+  .pb-video, .pb-preview-img{ width:100%; max-width:340px; border-radius:18px; background:#111; }
+  .pb-controls{ display:flex; gap:12px; margin-top:16px; }
+  .pb-btn{
+    border:none; border-radius:999px; padding:11px 18px; font-family:'Fredoka',sans-serif; font-weight:700;
+    font-size:0.85rem; cursor:pointer;
+  }
+  .pb-btn.primary{ background:var(--primary); color:#fff; }
+  .pb-btn.secondary{ background:rgba(255,255,255,0.15); color:#fff; }
+
+  /* ---------- BADGE CELEBRATION ---------- */
+  .celeb-overlay{
+    position:fixed; inset:0; z-index:300; background:rgba(20,16,32,0.75);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .celeb-overlay[hidden]{ display:none; }
+  .celeb-card{
+    background:linear-gradient(160deg, var(--primary), var(--quaternary)); color:#fff; text-align:center;
+    border-radius:26px; padding:36px 26px; max-width:340px; box-shadow:0 24px 60px rgba(0,0,0,0.4);
+  }
+  .celeb-emoji{ font-size:4rem; margin-bottom:10px; }
+  .celeb-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.4rem; margin-bottom:8px; }
+  .celeb-praise{ font-size:0.92rem; opacity:0.92; line-height:1.5; margin-bottom:18px; }
+  .celeb-count{ font-size:0.78rem; opacity:0.75; margin-bottom:14px; }
+  .celeb-btn{
+    border:none; border-radius:999px; padding:11px 22px; background:#fff; color:var(--ink, #2a2438);
+    font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.88rem; cursor:pointer;
+  }
+
+  /* ---------- TOAST ---------- */
+  .xp-toast{
+    position:fixed; left:50%; bottom:100px; transform:translateX(-50%) translateY(20px);
+    background:#2a2438; color:#fff; padding:12px 20px; border-radius:999px; font-family:'Fredoka',sans-serif;
+    font-weight:700; font-size:0.85rem; z-index:250; opacity:0; pointer-events:none;
+    transition:opacity .3s ease, transform .3s ease; box-shadow:0 12px 28px rgba(0,0,0,0.3); white-space:nowrap;
+  }
+  .xp-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ---------- CREW ---------- */
+  .crew-row{ display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
+  .crew-label{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:1.02rem; color:var(--text); transition:color .35s ease; }
+  .crew-sub{ font-size:0.82rem; opacity:0.6; margin-top:2px; color:var(--text); transition:color .35s ease; }
+  .crew-stack{ display:flex; align-items:center; cursor:pointer; }
+  .crew-stack .ca{
+    width:38px; height:38px; border-radius:50%; border:3px solid var(--bg);
+    margin-left:-12px; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.82rem;
+    box-shadow:0 3px 8px rgba(var(--shadow-rgb),0.15); transition:border-color .35s ease;
+  }
+  .crew-stack .ca:first-child{ margin-left:0; }
+  .crew-stack .ca.c1{ background:linear-gradient(135deg,var(--primary),var(--secondary)); }
+  .crew-stack .ca.c2{ background:linear-gradient(135deg,var(--tertiary),var(--tertiary-deep)); }
+  .crew-stack .ca.c3{ background:linear-gradient(135deg,var(--quaternary),var(--quaternary-light)); }
+  .crew-stack .more{ background:var(--raised-bg); color:var(--raised-fg); font-size:0.72rem; }
+
+  /* ---------- TRENDING GRID ---------- */
+  .section-title-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .section-title-row h3{ font-size:1.05rem; color:var(--text); transition:color .35s ease; }
+  .see-all{ font-size:0.8rem; font-weight:700; color:var(--primary); transition:color .35s ease; }
+  .trend-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .trend-card{
+    background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-radius:16px; overflow:hidden;
+    box-shadow:0 6px 16px rgba(var(--shadow-rgb),0.1); transition:background-color .35s ease;
+  }
+  .trend-img{ height:88px; display:flex; align-items:flex-end; padding:8px; font-size:1.6rem; }
+  .trend-card .tc-body{ padding:10px 12px 12px; }
+  .trend-card .tc-name{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.88rem; color:var(--text); transition:color .35s ease; }
+  .trend-card .tc-meta{ font-size:0.72rem; opacity:0.6; margin-top:2px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; color:var(--text); transition:color .35s ease; }
+  .tc-rating{ color:var(--secondary); font-weight:700; }
+
+  /* ---------- FRIENDS ACTIVITY ---------- */
+  .activity-row{ display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid rgba(var(--shadow-rgb),0.08); transition:border-color .35s ease; }
+  .activity-row:last-child{ border-bottom:none; }
+  .act-avatar{
+    width:36px; height:36px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.75rem;
+  }
+  .act-body{ flex:1; font-size:0.85rem; line-height:1.35; color:var(--text); transition:color .35s ease; }
+  .act-body b{ font-family:'Fredoka',sans-serif; }
+  .act-time{ font-size:0.72rem; opacity:0.5; white-space:nowrap; color:var(--text); transition:color .35s ease; }
+
+  /* ---------- STREAK ROW ---------- */
+  .profile-head{ display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; }
+  /* Profile hero avatar — docked in the nav's raised slot by default; on
+     open it FLIPs (JS: from-rect -> natural-rect transform) up into this
+     spot and sticks here (position:sticky) so it stays anchored at the
+     top of the stage while the rest of the profile content scrolls
+     underneath it. Sized at 200% of the 54px nav disc (54 * 2 = 108px). */
+  .profile-hero-avatar{
+    position:sticky; top:14px; z-index:20; margin:14px auto 0;
+    width:108px; height:108px; border-radius:50%; overflow:hidden;
+    border:3px solid var(--card-bg); box-shadow:0 10px 26px rgba(var(--shadow-rgb),0.35);
+    background:var(--raised-bg); display:block;
+  }
+  .profile-hero-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+  .streak-card{
+    background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-radius:16px; padding:14px 16px;
+    box-shadow:0 6px 16px rgba(var(--shadow-rgb),0.08); transition:background-color .35s ease;
+  }
+  .streak-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .streak-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.92rem; color:var(--text); display:flex; align-items:center; gap:6px; }
+  .streak-count{ font-size:0.8rem; font-weight:700; color:var(--secondary); }
+  .streak-days{ display:flex; justify-content:space-between; }
+  .streak-day{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .streak-day .flame{
+    width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:0.85rem; background:rgba(var(--shadow-rgb),0.06); opacity:0.4;
+  }
+  .streak-day.done .flame{ background:var(--secondary); opacity:1; }
+  .streak-day .dlabel{ font-size:0.66rem; opacity:0.55; color:var(--text); font-weight:700; }
+
+  /* ---------- QUICK CHIPS ---------- */
+  .chip-card{
+    background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-radius:16px; padding:14px 16px;
+    box-shadow:0 6px 16px rgba(var(--shadow-rgb),0.08); transition:background-color .35s ease;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  .chip-card-label{ font-size:0.82rem; font-weight:700; color:var(--text); font-family:'Fredoka',sans-serif; }
+  .chip-card-sub{ font-size:0.72rem; opacity:0.55; color:var(--text); margin-top:1px; }
+  .chip-row{ display:flex; gap:6px; }
+  .quick-chip{
+    border:1.5px solid rgba(var(--shadow-rgb),0.14); background:transparent; color:var(--text);
+    border-radius:999px; padding:6px 12px; font-size:0.76rem; font-weight:700; cursor:pointer;
+    font-family:'Nunito',sans-serif; transition:background-color .2s, border-color .2s, color .2s;
+  }
+  .quick-chip.selected{ background:var(--primary); border-color:var(--primary); color:#fff; }
+
+  /* ---------- MYSTERY STOP RING ---------- */
+  .mystery-card{
+    background:var(--card-bg); border:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-radius:16px; padding:14px 16px;
+    box-shadow:0 6px 16px rgba(var(--shadow-rgb),0.08); transition:background-color .35s ease;
+    display:flex; align-items:center; gap:14px;
+  }
+  .ring-wrap{ position:relative; width:56px; height:56px; flex-shrink:0; }
+  .ring-wrap svg{ width:56px; height:56px; transform:rotate(-90deg); }
+  .ring-track{ fill:none; stroke:rgba(var(--shadow-rgb),0.1); stroke-width:5; }
+  .ring-progress{ fill:none; stroke:var(--primary); stroke-width:5; stroke-linecap:round; transition:stroke-dashoffset .3s linear, stroke .35s ease; }
+  .ring-wrap .ring-label{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:0.68rem; font-weight:700; color:var(--text); font-family:'Fredoka',sans-serif;
+  }
+  .mystery-body .m-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.9rem; color:var(--text); }
+  .mystery-body .m-sub{ font-size:0.78rem; opacity:0.6; color:var(--text); margin-top:2px; }
+
+  /* ---------- RECAP OVERLAY ---------- */
+  .recap-trigger{
+    display:block; text-align:center; font-size:0.82rem; font-weight:700; color:var(--primary);
+    padding:6px 0 18px; cursor:pointer; background:none; border:none; font-family:'Nunito',sans-serif; width:100%;
+  }
+  .recap-overlay{
+    position:absolute; inset:0; z-index:80; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:32px 26px; opacity:0; pointer-events:none; transition:opacity .3s ease, background .35s ease; text-align:center;
+    background:linear-gradient(160deg, var(--primary), var(--quaternary));
+  }
+  .recap-overlay.show{ opacity:1; pointer-events:auto; }
+  .recap-close{
+    position:absolute; top:16px; right:16px; width:34px; height:34px; border-radius:50%;
+    background:rgba(255,255,255,0.9); border:none; cursor:pointer; font-size:1rem;
+  }
+  .recap-ring-wrap{ position:relative; width:150px; height:150px; margin-bottom:18px; }
+  .recap-ring-wrap svg{ width:150px; height:150px; transform:rotate(-90deg); }
+  .recap-ring-track{ fill:none; stroke:rgba(255,255,255,0.3); stroke-width:9; }
+  .recap-ring-progress{ fill:none; stroke:#fff; stroke-width:9; stroke-linecap:round; transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1); }
+  .recap-ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; }
+  .recap-ring-center .big{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.6rem; }
+  .recap-ring-center .small{ font-size:0.72rem; opacity:0.85; }
+  .recap-title{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.3rem; color:#fff; margin-bottom:22px; }
+  .recap-stats{ display:flex; gap:10px; }
+  .stat-float{
+    background:rgba(255,255,255,0.94); border-radius:14px; padding:12px 14px;
+    display:flex; flex-direction:column; align-items:center; gap:2px; min-width:78px;
+    opacity:0; transform:translateY(12px); transition:opacity .4s ease, transform .4s ease;
+  }
+  .recap-overlay.show .stat-float{ opacity:1; transform:translateY(0); }
+  .recap-overlay.show .stat-float:nth-child(1){ transition-delay:.5s; }
+  .recap-overlay.show .stat-float:nth-child(2){ transition-delay:.6s; }
+  .recap-overlay.show .stat-float:nth-child(3){ transition-delay:.7s; }
+  .stat-float .sf-val{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.05rem; color:var(--ink,#2a2438); }
+  .stat-float .sf-label{ font-size:0.66rem; opacity:0.6; color:#2a2438; }
+
+  /* ---------- BOTTOM NAV ----------
+     Sits outside .scroll-area (a sibling, not a descendant) so it's never
+     part of the scrolling flow — but it still needs an explicit z-index
+     above regular in-page content (.section/.sky-band use up to z-index:5)
+     or scrolled cards paint over it, since position:absolute with
+     z-index:auto stacks below any positioned sibling that sets an
+     explicit z-index, regardless of DOM order.
+
+     The wrap itself is what "expands into a sheet" for the profile page:
+     it's a column of [#profile-sheet (flex:1, clipped away at 0 height
+     by default), .tabbar (fixed height, always pinned at the bottom)].
+     JS animates the wrap's own height between the tabbar's natural
+     height and a near-full-stage height, revealing/hiding the sheet —
+     see openProfile/closeProfile. No overflow:hidden on the wrap itself:
+     the raised avatar disc deliberately pokes above .tabbar's top edge
+     via a negative margin, and clipping at the wrap level cut that disc
+     (and .tabbar's own drop shadow) off. #profile-sheet's own flex
+     sizing + overflow-y already contain its content without needing the
+     parent to clip too. */
+  .tabbar-wrap{
+    position:absolute; left:0; right:0; bottom:0; z-index:60;
+    display:flex; flex-direction:column;
+  }
+  #profile-sheet{
+    flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch;
+    background:var(--bg); transition:background-color .35s ease;
+  }
+  .tabbar{
+    background:var(--card-bg); border-top:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-radius:0;
+    padding:10px 14px calc(env(safe-area-inset-bottom,0px) + 12px);
+    display:flex; align-items:flex-end; justify-content:space-between;
+    box-shadow:0 -10px 26px rgba(var(--shadow-rgb),0.18);
+    position:relative; width:100%; flex-shrink:0; transition:background-color .35s ease;
+  }
+  .tab-item{
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 10px; border-radius:14px; color:var(--text); opacity:0.42;
+    font-size:0.66rem; font-weight:700; flex:1; cursor:pointer; transition:color .35s ease;
+  }
+  .tab-item svg{ width:21px; height:21px; }
+  .tab-item.active{ color:var(--primary); opacity:1; }
+  /* Raised slot now docks the user's profile photo instead of the map
+     icon — the disc is a separate inner element (not the tab-item
+     itself) so a "Profile" label can sit below it, matching the other
+     nav items, without being clipped by the disc's own overflow:hidden. */
+  .tab-item.raised{
+    margin-top:-30px; padding:0 0 8px; flex:0 0 54px; gap:6px; opacity:1;
+  }
+  .tab-item.raised span{ font-size:0.66rem; font-weight:700; opacity:0.55; transition:opacity .35s ease, color .35s ease; }
+  .tab-item.raised.active span{ opacity:1; color:var(--primary); }
+  .nav-avatar-disc{
+    position:relative; width:54px; height:54px; border-radius:50%; overflow:hidden;
+    background:var(--raised-bg); border:3px solid var(--card-bg);
+    box-shadow:0 8px 18px rgba(var(--shadow-rgb),0.4); transition:background-color .35s ease;
+  }
+  .nav-avatar-disc img{ width:100%; height:100%; object-fit:cover; display:block; }
+  /* Swapped in for the photo while the profile is open, occupying the
+     same dock so there's an obvious way to close it without having to
+     scroll back up to the hero disc. */
+  .nav-avatar-close{
+    position:absolute; inset:0; border:none; padding:0; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--raised-bg); color:var(--raised-fg); font-size:1.5rem; line-height:1;
+  }
+  .nav-avatar-close[hidden]{ display:none; }
+
+  @media (max-width:430px){
+    body{ padding:0; }
+    .phone{ width:100vw; height:100vh; max-height:100vh; border-radius:0; box-shadow:none; }
+    .time-control{ bottom:0; border-radius:20px 20px 0 0; }
+    /* At this width .phone fills the real viewport, so the in-app bottom
+       tab bar and this fixed-position reopen pill would otherwise land
+       in the same spot — lift the pill clear of it. */
+    .time-control-reopen{ bottom:90px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-note">Concept exploration — header is a Roku-style parallax scene (drag to explore, auto-drifts on its own); day art only for now. The rest of the page still follows the time-of-day slider below.</div>
+
+<div class="phone" id="phone">
+  <div class="scroll-area">
+    <div class="statusbar" id="statusbar">
+      <span id="statusbar-time">9:41</span>
+      <span>●●●●&nbsp;&nbsp;📶&nbsp;&nbsp;🔋</span>
+    </div>
+
+    <div id="view-home">
+    <div class="phone-glow" id="phone-glow">
+      <div class="blob b1"></div>
+      <div class="blob b2"></div>
+      <div class="blob b3"></div>
+      <div class="blob b4"></div>
+    </div>
+    <div class="page-stars" id="page-stars">
+      <div class="star" style="width:2px;height:2px; top:8%; left:20%;"></div>
+      <div class="star" style="width:2px;height:2px; top:24%; left:88%;"></div>
+      <div class="star" style="width:3px;height:3px; top:38%; left:10%;"></div>
+      <div class="star" style="width:2px;height:2px; top:46%; left:70%;"></div>
+      <div class="star" style="width:2px;height:2px; top:58%; left:40%;"></div>
+      <div class="star" style="width:3px;height:3px; top:66%; left:92%;"></div>
+      <div class="star" style="width:2px;height:2px; top:74%; left:16%;"></div>
+      <div class="star" style="width:2px;height:2px; top:82%; left:55%;"></div>
+      <div class="star" style="width:2px;height:2px; top:90%; left:78%;"></div>
+    </div>
+    <div class="sky-band" id="sky-band">
+      <div class="px-layers">
+        <img class="px-layer" id="px-sky" src="assets/parallax/bay-area-test/sky.jpg" alt="">
+        <img class="px-layer" id="px-city" src="assets/parallax/bay-area-test/city_longer.png" alt="">
+        <img class="px-layer" id="px-buildings" src="assets/parallax/bay-area-test/buildings.png" alt="">
+        <img class="px-layer" id="px-people" src="assets/parallax/bay-area-test/people.png" alt="">
+      </div>
+      <div class="px-scroll" id="px-scroll">
+        <div class="px-spacer" id="px-spacer"></div>
+      </div>
+      <div class="sky-band-scrim"></div>
+      <div class="home-header-inner">
+        <div class="search-bar">
+          <span class="icon-btn" style="background:none; width:auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg>
+          </span>
+          <input type="text" placeholder="Search moods, venues, vibes...">
+          <span class="icon-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section home-greet-section">
+      <h1 id="greet-h1">Good evening, Shane</h1>
+      <div class="greet-sub" id="greet-sub">Ready for tonight's adventure?</div>
+      <div class="weather-line" id="weather-line">64°F · Clear — good night for a rooftop stop</div>
+    </div>
+
+    <div class="section" id="adventure-section">
+      <!-- Real gameplay: sign-in prompt, route picker, or active itinerary,
+           depending on auth/adventure state — see loadAdventureSection(). -->
+      <div class="ai-pick" id="adventure-signed-out">
+        <span class="ai-tag">✨ Real gameplay</span>
+        <h2>Sign in to start a real adventure</h2>
+        <p id="adventure-signed-out-sub">Earn real XP, coins, and badges — check in at real stops as you go.</p>
+        <form class="av-signin-form" onsubmit="event.preventDefault(); avSendMagicLink();">
+          <input type="email" id="av-signin-email" placeholder="you@example.com" required>
+          <button type="submit" class="av-signin-btn" id="av-signin-submit-btn">Sign in</button>
+        </form>
+        <p class="av-signin-msg" id="av-signin-msg"></p>
+      </div>
+      <div id="adventure-body"></div>
+    </div>
+
+    <div class="section">
+      <div class="crew-row">
+        <div>
+          <div class="crew-label">This Adventure's Crew</div>
+          <div class="crew-sub">3 people going tonight</div>
+        </div>
+        <div class="crew-stack">
+          <div class="ca c1">J</div>
+          <div class="ca c2">A</div>
+          <div class="ca c3 more">+2</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="display:flex; flex-direction:column; gap:12px;">
+      <div class="chip-card">
+        <div>
+          <div class="chip-card-label">🪙 Boost tonight's route</div>
+          <div class="chip-card-sub">Unlock one more stop with coins</div>
+        </div>
+        <div class="chip-row" id="coin-chip-row">
+          <button class="quick-chip" data-amt="50">+50</button>
+          <button class="quick-chip selected" data-amt="100">+100</button>
+          <button class="quick-chip" data-amt="250">+250</button>
+        </div>
+      </div>
+
+      <div class="mystery-card">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 56 56">
+            <circle class="ring-track" cx="28" cy="28" r="24"></circle>
+            <circle class="ring-progress" id="mystery-ring" cx="28" cy="28" r="24"></circle>
+          </svg>
+          <div class="ring-label" id="mystery-ring-label">10s</div>
+        </div>
+        <div class="mystery-body">
+          <div class="m-title">🎲 Tonight's Wildcard</div>
+          <div class="m-sub" id="mystery-sub">Revealing a surprise stop soon…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-top:8px;">
+      <div class="section-title-row">
+        <h3>Trending routes near you</h3>
+        <span class="see-all">See all</span>
+      </div>
+      <div class="trend-grid">
+        <div class="trend-card">
+          <div class="trend-img" style="background:linear-gradient(135deg,var(--primary),var(--tertiary));">🍸</div>
+          <div class="tc-body">
+            <div class="tc-name">The Tasting Menu</div>
+            <div class="tc-meta"><span class="tc-rating">⭐ 4.8</span><span>·</span><span>4 stops</span><span>·</span><span>1.2 mi</span></div>
+          </div>
+        </div>
+        <div class="trend-card">
+          <div class="trend-img" style="background:linear-gradient(135deg,var(--secondary),var(--quaternary));">🎯</div>
+          <div class="tc-body">
+            <div class="tc-name">Recess Energy</div>
+            <div class="tc-meta"><span class="tc-rating">⭐ 4.9</span><span>·</span><span>5 stops</span><span>·</span><span>0.8 mi</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="padding-bottom:20px;">
+      <div class="section-title-row">
+        <h3>Friends Activity</h3>
+        <span class="see-all">See all</span>
+      </div>
+      <div class="activity-list">
+        <div class="activity-row">
+          <div class="act-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary));">J&amp;A</div>
+          <div class="act-body"><b>Jordan &amp; Alex</b> completed "After Hours" — 3 stops, 2 badges earned.</div>
+          <div class="act-time">2h</div>
+        </div>
+        <div class="activity-row">
+          <div class="act-avatar" style="background:linear-gradient(135deg,var(--tertiary),var(--tertiary-deep));">S&amp;R</div>
+          <div class="act-body"><b>Sam &amp; Riya</b> just checked in at Kaiseki Nine.</div>
+          <div class="act-time">4h</div>
+        </div>
+        <div class="activity-row">
+          <div class="act-avatar" style="background:linear-gradient(135deg,var(--quaternary),var(--quaternary-light));">D&amp;K</div>
+          <div class="act-body"><b>Devon &amp; Kai</b> unlocked the "Explorer" badge.</div>
+          <div class="act-time">Yesterday</div>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="recap-trigger" id="recap-trigger">🎉 Preview: Adventure Complete recap</button>
+    </div>
+  </div>
+
+  <div class="recap-overlay" id="recap-overlay">
+    <button type="button" class="recap-close" id="recap-close" aria-label="Close">&times;</button>
+    <div class="recap-ring-wrap">
+      <svg viewBox="0 0 150 150">
+        <circle class="recap-ring-track" cx="75" cy="75" r="64"></circle>
+        <circle class="recap-ring-progress" id="recap-ring" cx="75" cy="75" r="64"></circle>
+      </svg>
+      <div class="recap-ring-center">
+        <div class="big">3/3</div>
+        <div class="small">stops complete</div>
+      </div>
+    </div>
+    <div class="recap-title">Adventure Complete! 🎉</div>
+    <div class="recap-stats">
+      <div class="stat-float"><div class="sf-val">+150</div><div class="sf-label">XP earned</div></div>
+      <div class="stat-float"><div class="sf-val">+40 🪙</div><div class="sf-label">Coins</div></div>
+      <div class="stat-float"><div class="sf-val">1 🏅</div><div class="sf-label">New badge</div></div>
+    </div>
+  </div>
+
+  <div class="tabbar-wrap" id="tabbar-wrap">
+    <div class="profile-sheet" id="profile-sheet" hidden>
+      <div class="profile-hero-avatar" id="profile-avatar-hero"><img src="assets/profile/shane-avatar.jpg" alt="Shane"></div>
+      <div class="section">
+        <div class="profile-head">
+          <h2 style="font-size:1.2rem; color:var(--text);">Shane</h2>
+          <div class="crew-sub" id="profile-level-text">Level 7 Explorer</div>
+        </div>
+        <div class="rp-meta" id="profile-real-stats" style="margin-top:10px; text-align:center;"></div>
+      </div>
+      <div class="section">
+        <div class="streak-card">
+          <div class="streak-head">
+            <div class="streak-title">🔥 Adventure streak</div>
+            <div class="streak-count">4 days</div>
+          </div>
+          <div class="streak-days">
+            <div class="streak-day done"><div class="flame">🔥</div><div class="dlabel">M</div></div>
+            <div class="streak-day done"><div class="flame">🔥</div><div class="dlabel">T</div></div>
+            <div class="streak-day done"><div class="flame">🔥</div><div class="dlabel">W</div></div>
+            <div class="streak-day done"><div class="flame">🔥</div><div class="dlabel">T</div></div>
+            <div class="streak-day"><div class="flame">🔥</div><div class="dlabel">F</div></div>
+            <div class="streak-day"><div class="flame">🔥</div><div class="dlabel">S</div></div>
+            <div class="streak-day"><div class="flame">🔥</div><div class="dlabel">S</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <div class="tab-item active" data-view="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+        <span>Home</span>
+      </div>
+      <div class="tab-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg>
+        <span>Explore</span>
+      </div>
+      <div class="tab-item raised" id="nav-avatar-btn">
+        <div class="nav-avatar-disc">
+          <img src="assets/profile/shane-avatar.jpg" alt="Profile" id="nav-avatar-img">
+          <button type="button" class="nav-avatar-close" id="nav-avatar-close" aria-label="Close profile" hidden>&times;</button>
+        </div>
+        <span>Profile</span>
+      </div>
+      <div class="tab-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg>
+        <span>Crew</span>
+      </div>
+      <div class="tab-item" data-view="map">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        <span>Map</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Real gameplay: photo booth check-in capture -->
+<div class="pb-overlay" id="photobooth-overlay" hidden>
+  <div class="pb-header">Check in at <b id="pb-stop-name">this stop</b> — earn +<span id="pb-coin-amt">20</span> bonus coins with a photo</div>
+  <video id="pb-video" class="pb-video" autoplay playsinline muted></video>
+  <img id="pb-preview-img" class="pb-preview-img" style="display:none;" alt="">
+  <canvas id="pb-canvas" style="display:none;"></canvas>
+  <div class="pb-controls" id="pb-controls-live">
+    <button type="button" class="pb-btn secondary" onclick="closePhotoBooth()">Cancel</button>
+    <button type="button" class="pb-btn secondary" onclick="switchCamera()">Flip camera</button>
+    <button type="button" class="pb-btn primary" onclick="capturePhoto()">📸 Capture</button>
+  </div>
+  <div class="pb-controls" id="pb-controls-preview" style="display:none;">
+    <button type="button" class="pb-btn secondary" onclick="retakePhoto()">Retake</button>
+    <button type="button" class="pb-btn primary" onclick="useCapturedPhoto()">Use this photo</button>
+  </div>
+</div>
+
+<!-- Real gameplay: badge celebration -->
+<div class="celeb-overlay" id="celebration-overlay" hidden>
+  <div class="celeb-card">
+    <div class="celeb-emoji" id="celeb-emoji">🏅</div>
+    <div class="celeb-title" id="celeb-title">Badge earned!</div>
+    <div class="celeb-praise" id="celeb-praise"></div>
+    <div class="celeb-count" id="celeb-count"></div>
+    <button type="button" class="celeb-btn" onclick="dismissCelebration()">Nice!</button>
+  </div>
+</div>
+
+<div class="xp-toast" id="xp-toast"></div>
+
+<div class="time-control" id="time-control">
+  <button type="button" class="time-control-close" id="time-control-close" aria-label="Close preview control">&times;</button>
+  <div class="time-control-eyebrow">PREVIEW CONTROL — NOT PART OF THE APP</div>
+  <div class="time-control-row">
+    <span class="time-control-label">Interface follows your device's local time</span>
+    <span class="time-control-value" id="time-value">9:41 PM</span>
+  </div>
+  <div class="time-presets">
+    <button class="time-preset-btn" id="theme-preview-day">☀️ Preview Day</button>
+    <button class="time-preset-btn" id="theme-preview-night">🌙 Preview Night</button>
+    <button class="time-preset-btn" id="theme-preview-auto">🕐 Use real time</button>
+  </div>
+</div>
+
+<button type="button" class="time-control-reopen hidden" id="time-control-reopen">🕐 Preview control</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  // Close/reopen the preview control so it's possible to see the whole
+  // phone (bottom nav included) while previewing, without losing the
+  // time controls entirely.
+  const timeControl = document.getElementById('time-control');
+  const timeControlReopen = document.getElementById('time-control-reopen');
+  document.getElementById('time-control-close').addEventListener('click', () => {
+    timeControl.classList.add('hidden');
+    timeControlReopen.classList.remove('hidden');
+  });
+  timeControlReopen.addEventListener('click', () => {
+    timeControl.classList.remove('hidden');
+    timeControlReopen.classList.add('hidden');
+  });
+
+  const tabbarWrap = document.getElementById('tabbar-wrap');
+  const tabbarEl = document.querySelector('.tabbar');
+  const profileSheet = document.getElementById('profile-sheet');
+  const navAvatarBtn = document.getElementById('nav-avatar-btn');
+  const navAvatarImg = document.getElementById('nav-avatar-img');
+  const navAvatarClose = document.getElementById('nav-avatar-close');
+  const heroAvatar = document.getElementById('profile-avatar-hero');
+  const viewHomeEl = document.getElementById('view-home');
+  let profileOpen = false;
+  let profileAnimating = false;
+
+  // Opening the profile is the nav bar itself expanding upward into a
+  // sheet, not the avatar flying off across the whole screen on its own:
+  // .tabbar-wrap grows from "just tall enough for .tabbar" to the full
+  // stage height, revealing #profile-sheet (clipped to 0 height until
+  // then) above the tab row, which stays pinned at the bottom throughout.
+  // The avatar disc still runs a FLIP transform (dock rect -> natural
+  // sticky rect) so it visibly rides along at the top of the sheet as it
+  // grows, but both rects now live inside the same expanding box instead
+  // of one being off in the unrelated scroll area. The home content
+  // underneath fades out/in in sync with the same transition.
+  function navCollapsedHeight(){
+    return tabbarEl.getBoundingClientRect().height;
+  }
+  function navExpandedHeight(){
+    // Leave the status bar (time/battery icons) uncovered — the sheet
+    // expands up to the top of the scrolling parallax header, not over it.
+    return phone.clientHeight - statusbar.getBoundingClientRect().height;
+  }
+
+  function openProfile(){
+    if(profileOpen || profileAnimating) return;
+    profileAnimating = true;
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    navAvatarBtn.classList.add('active');
+
+    const fromRect = navAvatarImg.getBoundingClientRect();
+    navAvatarImg.style.transition = 'none';
+    navAvatarImg.style.opacity = '0';
+    navAvatarImg.style.pointerEvents = 'none';
+    navAvatarClose.hidden = false;
+    profileSheet.hidden = false;
+
+    // Measure where the hero disc will naturally rest once the sheet is
+    // fully expanded, without the user ever seeing that expanded state —
+    // jump the wrap to its target height, read the rect, then rewind
+    // before anything paints.
+    const collapsedH = navCollapsedHeight();
+    const expandedH = navExpandedHeight();
+    tabbarWrap.style.transition = 'none';
+    tabbarWrap.style.height = expandedH + 'px';
+    const toRect = heroAvatar.getBoundingClientRect();
+    tabbarWrap.style.height = collapsedH + 'px';
+
+    const dx = fromRect.left + fromRect.width / 2 - (toRect.left + toRect.width / 2);
+    const dy = fromRect.top + fromRect.height / 2 - (toRect.top + toRect.height / 2);
+    const scale = fromRect.width / toRect.width;
+    heroAvatar.style.transition = 'none';
+    heroAvatar.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+    heroAvatar.getBoundingClientRect(); // force reflow so the lines below start real transitions, not no-ops
+
+    tabbarWrap.style.transition = 'height .45s cubic-bezier(.22,.85,.32,1)';
+    heroAvatar.style.transition = 'transform .45s cubic-bezier(.22,.85,.32,1)';
+    viewHomeEl.style.transition = 'opacity .45s ease';
+    tabbarWrap.style.height = expandedH + 'px';
+    heroAvatar.style.transform = 'translate(0,0) scale(1)';
+    viewHomeEl.style.opacity = '0';
+
+    const finish = () => {
+      tabbarWrap.style.transition = '';
+      heroAvatar.style.transition = '';
+      viewHomeEl.style.transition = '';
+      profileOpen = true;
+      profileAnimating = false;
+    };
+    tabbarWrap.addEventListener('transitionend', function te(e){
+      if(e.propertyName !== 'height') return;
+      tabbarWrap.removeEventListener('transitionend', te);
+      clearTimeout(fallback);
+      finish();
+    }, {once:true});
+    const fallback = setTimeout(finish, 550); // safety net if transitionend doesn't fire
+  }
+
+  function closeProfile(){
+    if(!profileOpen || profileAnimating) return;
+    profileAnimating = true;
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelector('.tab-item[data-view="home"]').classList.add('active');
+
+    const fromRect = heroAvatar.getBoundingClientRect();
+    const toRect = navAvatarImg.getBoundingClientRect(); // still laid out while visibility:hidden
+    const dx = toRect.left + toRect.width / 2 - (fromRect.left + fromRect.width / 2);
+    const dy = toRect.top + toRect.height / 2 - (fromRect.top + fromRect.height / 2);
+    const scale = toRect.width / fromRect.width;
+    const collapsedH = navCollapsedHeight();
+
+    heroAvatar.style.transition = 'none';
+    heroAvatar.style.transform = 'translate(0,0) scale(1)';
+    heroAvatar.getBoundingClientRect(); // force reflow so the lines below start real transitions, not no-ops
+
+    tabbarWrap.style.transition = 'height .4s cubic-bezier(.4,0,.2,1)';
+    heroAvatar.style.transition = 'transform .4s cubic-bezier(.4,0,.2,1)';
+    viewHomeEl.style.transition = 'opacity .4s ease';
+    tabbarWrap.style.height = collapsedH + 'px';
+    heroAvatar.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+    viewHomeEl.style.opacity = '1';
+
+    const finish = () => {
+      tabbarWrap.style.transition = '';
+      tabbarWrap.style.height = '';
+      heroAvatar.style.transition = '';
+      heroAvatar.style.transform = '';
+      viewHomeEl.style.transition = '';
+      navAvatarImg.style.transition = 'opacity .3s ease';
+      navAvatarImg.style.opacity = '1';
+      navAvatarImg.style.pointerEvents = '';
+      navAvatarClose.hidden = true;
+      profileSheet.hidden = true;
+      profileSheet.scrollTop = 0;
+      profileOpen = false;
+      profileAnimating = false;
+    };
+    tabbarWrap.addEventListener('transitionend', function te(e){
+      if(e.propertyName !== 'height') return;
+      tabbarWrap.removeEventListener('transitionend', te);
+      clearTimeout(fallback);
+      finish();
+    }, {once:true});
+    const fallback = setTimeout(finish, 500); // safety net if transitionend doesn't fire
+  }
+
+  navAvatarBtn.addEventListener('click', () => {
+    if(profileOpen){
+      closeProfile();
+    } else {
+      openProfile();
+    }
+  });
+
+  // Only Home has a real view built out in this concept — Explore/Crew/
+  // Map are just placeholder tabs. Their one real job here is: if the
+  // profile sheet is open, tapping any of them closes it first.
+  document.querySelectorAll('.tab-item:not(.raised)').forEach(tab => {
+    tab.addEventListener('click', () => {
+      if(profileOpen){
+        closeProfile();
+        return;
+      }
+      document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  // ---------- QUICK COIN CHIPS ----------
+  document.querySelectorAll('#coin-chip-row .quick-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#coin-chip-row .quick-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+    });
+  });
+
+  // ---------- MYSTERY STOP COUNTDOWN RING ----------
+  const MYSTERY_STOPS = ['a rooftop speakeasy', 'a late-night ramen counter', 'an underground listening room', 'a 24-hour arcade'];
+  const mysteryRing = document.getElementById('mystery-ring');
+  const mysteryLabel = document.getElementById('mystery-ring-label');
+  const mysterySub = document.getElementById('mystery-sub');
+  const MYSTERY_R = 24;
+  const MYSTERY_CIRC = 2 * Math.PI * MYSTERY_R;
+  mysteryRing.style.strokeDasharray = MYSTERY_CIRC;
+  let mysteryT = 10;
+  function tickMystery(){
+    mysteryT -= 1;
+    if(mysteryT <= 0){
+      const pick = MYSTERY_STOPS[Math.floor(Math.random() * MYSTERY_STOPS.length)];
+      mysterySub.textContent = `Revealed: ${pick} ✨`;
+      mysteryRing.style.strokeDashoffset = 0;
+      mysteryLabel.textContent = '✓';
+      setTimeout(() => {
+        mysteryT = 10;
+        mysterySub.textContent = 'Revealing a surprise stop soon…';
+      }, 2200);
+      return;
+    }
+    const frac = mysteryT / 10;
+    mysteryRing.style.strokeDashoffset = MYSTERY_CIRC * (1 - frac);
+    mysteryLabel.textContent = mysteryT + 's';
+  }
+  mysteryRing.style.strokeDashoffset = 0;
+  setInterval(tickMystery, 1000);
+
+  // ---------- ADVENTURE RECAP OVERLAY ----------
+  const recapOverlay = document.getElementById('recap-overlay');
+  const recapRing = document.getElementById('recap-ring');
+  const RECAP_R = 64;
+  const RECAP_CIRC = 2 * Math.PI * RECAP_R;
+  recapRing.style.strokeDasharray = RECAP_CIRC;
+  recapRing.style.strokeDashoffset = RECAP_CIRC;
+
+  document.getElementById('recap-trigger').addEventListener('click', () => {
+    recapOverlay.classList.add('show');
+    // Restart the ring fill animation each time it opens.
+    recapRing.style.transition = 'none';
+    recapRing.style.strokeDashoffset = RECAP_CIRC;
+    void recapRing.getBoundingClientRect();
+    recapRing.style.transition = '';
+    requestAnimationFrame(() => { recapRing.style.strokeDashoffset = 0; });
+  });
+  document.getElementById('recap-close').addEventListener('click', () => {
+    recapOverlay.classList.remove('show');
+  });
+
+  // ---------- DAY/NIGHT (binary, real local device time) ----------
+  // Exactly two fixed interface states — light by day, dark by night —
+  // switching at a fixed local-clock boundary rather than gradually
+  // animating through a color gradient. Uses the *viewer's own device*
+  // clock (JS Date is always local time, so this already respects
+  // whatever timezone they're actually in — no geolocation needed).
+  // Greeting copy still varies by time of day since that's just content,
+  // not a color decision.
+  const DAY_START_HOUR = 6;    // 6:00am local
+  const NIGHT_START_HOUR = 20; // 8:00pm local
+
+  const THEME = {
+    day: {
+      bg:'#fffaf3', text:'#2a2438',
+      primary:'#e8503f', secondary:'#f2994a', tertiary:'#0ea5a0', tertiaryDeep:'#0b6e68',
+      quaternary:'#5b4b8a', quaternaryLight:'#8a76c9',
+      cardBg:'rgba(255,255,255,0.6)', cardBorder:'rgba(255,255,255,0.7)',
+      raisedBg:'#2a2438', raisedFg:'#ffffff', starsOpacity:0,
+    },
+    night: {
+      bg:'#0a0912', text:'#f7f3ff',
+      primary:'#8b7cf6', secondary:'#5eb8f0', tertiary:'#2dd4bf', tertiaryDeep:'#1a9c8f',
+      quaternary:'#4c3d99', quaternaryLight:'#8677d9',
+      cardBg:'rgba(255,255,255,0.07)', cardBorder:'rgba(255,255,255,0.12)',
+      raisedBg:'#8b7cf6', raisedFg:'#0a0912', starsOpacity:1,
+    },
+  };
+
+  function hexToRgb(hex){
+    const n = parseInt(hex.replace('#',''), 16);
+    return [(n>>16)&255, (n>>8)&255, n&255];
+  }
+  function isDaytimeHour(hour){ return hour >= DAY_START_HOUR && hour < NIGHT_START_HOUR; }
+  function greetingForHour(hour){
+    if(hour >= 5 && hour < 12) return 'Good morning';
+    if(hour >= 12 && hour < 17) return 'Good afternoon';
+    if(hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
+  }
+
+  const phone = document.getElementById('phone');
+  const phoneGlow = document.getElementById('phone-glow');
+  const pageStars = document.getElementById('page-stars');
+  const statusbar = document.getElementById('statusbar');
+
+  let themePreviewOverride = null; // 'day' | 'night' | null (null = follow real device time)
+
+  function applyDayNight(){
+    const now = new Date();
+    const hour = now.getHours() + now.getMinutes() / 60;
+    const isDay = themePreviewOverride ? themePreviewOverride === 'day' : isDaytimeHour(hour);
+    const th = isDay ? THEME.day : THEME.night;
+
+    phone.style.setProperty('--bg', th.bg);
+    phone.style.setProperty('--text', th.text);
+    phone.style.setProperty('--primary', th.primary);
+    phone.style.setProperty('--secondary', th.secondary);
+    phone.style.setProperty('--tertiary', th.tertiary);
+    phone.style.setProperty('--tertiary-deep', th.tertiaryDeep);
+    phone.style.setProperty('--quaternary', th.quaternary);
+    phone.style.setProperty('--quaternary-light', th.quaternaryLight);
+    // Frosted glass panels: light mode is translucent white over the warm
+    // bg, dark mode is a faint light veil over the deep purple bg — both
+    // rely on backdrop-filter blur (set in CSS) to pick up whatever's
+    // showing through underneath.
+    phone.style.setProperty('--card-bg', th.cardBg);
+    phone.style.setProperty('--card-border', th.cardBorder);
+    phone.style.setProperty('--raised-bg', th.raisedBg);
+    phone.style.setProperty('--raised-fg', th.raisedFg);
+    phone.style.setProperty('--shadow-rgb', hexToRgb(th.text).join(','));
+
+    phoneGlow.style.opacity = th.starsOpacity;
+    pageStars.style.opacity = th.starsOpacity * 0.8;
+
+    document.getElementById('greet-h1').innerHTML = greetingForHour(hour) + ', Shane';
+    document.getElementById('greet-sub').textContent = isDay
+      ? "Ready for today's adventure?"
+      : "Ready for tonight's adventure?";
+
+    const ampm = Math.floor(hour) >= 12 ? 'PM' : 'AM';
+    let h12 = Math.floor(hour) % 12; if(h12 === 0) h12 = 12;
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('time-value').textContent = `${h12}:${mm} ${ampm}`;
+    document.getElementById('statusbar-time').textContent = `${h12}:${mm}`;
+    statusbar.style.color = th.text;
+  }
+
+  document.getElementById('theme-preview-day').addEventListener('click', () => { themePreviewOverride = 'day'; applyDayNight(); });
+  document.getElementById('theme-preview-night').addEventListener('click', () => { themePreviewOverride = 'night'; applyDayNight(); });
+  document.getElementById('theme-preview-auto').addEventListener('click', () => { themePreviewOverride = null; applyDayNight(); });
+
+  applyDayNight();
+  // Keep the clock display and the real (non-overridden) theme fresh
+  // without needing a reload, in case real time crosses the boundary
+  // while the page is open.
+  setInterval(() => { if(!themePreviewOverride) applyDayNight(); }, 60000);
+
+  // ---------- ROKU-STYLE PARALLAX HEADER ----------
+  // Four real illustrated depth layers at different speeds, same
+  // mechanism as parallax-concept.html: drag/swipe to explore manually,
+  // or let it auto-drift ambiently like a Roku home background.
+  // LVL1 sky (furthest) -> LVL2 cityscape -> LVL3 downtown buildings ->
+  // LVL4 people (closest, foreground). Day art only for now.
+  (function initParallaxHeader(){
+    const wrap = document.getElementById('sky-band');
+    const pxScroll = document.getElementById('px-scroll');
+    const pxSpacer = document.getElementById('px-spacer');
+    const skyImg = document.getElementById('px-sky');
+    const cityImg = document.getElementById('px-city');
+    const buildingsImg = document.getElementById('px-buildings');
+    const peopleImg = document.getElementById('px-people');
+
+    // Speed factors: 0 = pinned to viewport, 1 = moves 1:1 with the drag
+    // (i.e. is the layer whose width sets the scrollable range).
+    const SPEED = { sky: 0.1, city: 0.3, buildings: 0.55, people: 1 };
+
+    // city_longer.png (5000px native) is a long empty water/sky lead-in
+    // followed by the skyline's low-rise edge starting around native
+    // x=3560, with the Space Needle first appearing at x=3914 (measured
+    // directly from the source pixels). Anchored to the END of the
+    // scroll rather than the start: at rest we're still in the empty
+    // lead-in (no buildings poking above the foreground street), and by
+    // the time the scroll maxes out we've drifted just to the city's
+    // edge — never far enough to reveal the needle.
+    //
+    // The gap between where buildings start (3560) and the needle (3914)
+    // is only 354px — narrower than one viewport's worth of the image at
+    // most screen sizes — so the safe target has to be derived from the
+    // *actual* viewport width (how much native-image-space is visible at
+    // once), not a fixed x position, or a wider device would scroll the
+    // needle right into view even while "aimed" at the same edge point.
+    const CITY_NEEDLE_NATIVE_X = 3914;
+    const CITY_SAFETY_MARGIN_NATIVE = 20;
+    let cityBaseOffset = 0;
+
+    function computeCityBaseOffset(){
+      if(!cityImg.naturalHeight || !peopleImg.naturalHeight) return;
+      const scale = wrap.clientHeight / cityImg.naturalHeight;
+      const peopleWidth = peopleImg.getBoundingClientRect().width;
+      const maxScroll = Math.max(peopleWidth - wrap.clientWidth, 0);
+      const viewportNativeWidth = wrap.clientWidth / scale;
+      const edgeNativeX = CITY_NEEDLE_NATIVE_X - CITY_SAFETY_MARGIN_NATIVE - viewportNativeWidth;
+      const edgeRendered = edgeNativeX * scale;
+      cityBaseOffset = -(edgeRendered - maxScroll * SPEED.city);
+    }
+
+    function sizeSpacer(){
+      const w = peopleImg.getBoundingClientRect().width;
+      pxSpacer.style.width = Math.max(w, wrap.clientWidth) + 'px';
+    }
+
+    function applyParallax(){
+      const s = pxScroll.scrollLeft;
+      skyImg.style.transform = `translateX(${-s * SPEED.sky}px)`;
+      cityImg.style.transform = `translateX(${cityBaseOffset - s * SPEED.city}px)`;
+      buildingsImg.style.transform = `translateX(${-s * SPEED.buildings}px)`;
+      peopleImg.style.transform = `translateX(${-s * SPEED.people}px)`;
+    }
+
+    let ticking = false;
+    pxScroll.addEventListener('scroll', () => {
+      if(ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { applyParallax(); ticking = false; });
+    }, { passive: true });
+
+    function refreshLayout(){ sizeSpacer(); computeCityBaseOffset(); applyParallax(); }
+    window.addEventListener('resize', refreshLayout);
+    if(peopleImg.complete) refreshLayout(); else peopleImg.addEventListener('load', refreshLayout);
+    if(cityImg.complete) refreshLayout(); else cityImg.addEventListener('load', refreshLayout);
+
+    // ---------- AUTO-SCROLL (ambient drift, ping-pong at the edges) ----------
+    const AUTO_SPEED = 0.35;
+    let autoDir = 1;
+    let autoPaused = false;
+    let resumeTimer = null;
+
+    function autoStep(){
+      if(!autoPaused){
+        const max = pxScroll.scrollWidth - pxScroll.clientWidth;
+        let next = pxScroll.scrollLeft + AUTO_SPEED * autoDir;
+        if(next >= max){ next = max; autoDir = -1; }
+        else if(next <= 0){ next = 0; autoDir = 1; }
+        pxScroll.scrollLeft = next;
+      }
+      requestAnimationFrame(autoStep);
+    }
+    requestAnimationFrame(autoStep);
+
+    function pauseAuto(){
+      autoPaused = true;
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => { autoPaused = false; }, 2500);
+    }
+    ['pointerdown', 'wheel', 'touchstart'].forEach(evt => {
+      pxScroll.addEventListener(evt, pauseAuto, { passive: true });
+    });
+  })();
+
+  // ---------- WEATHER (best-effort; static fallback stays if it fails) ----------
+  function describeWeather(code, isDay) {
+    const clear = isDay ? '☀️' : '🌙';
+    if (code === 0) return [clear, 'Clear'];
+    if ([1, 2].includes(code)) return [isDay ? '🌤️' : '🌙', 'Mostly clear'];
+    if (code === 3) return ['☁️', 'Cloudy'];
+    if ([45, 48].includes(code)) return ['🌫️', 'Foggy'];
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return ['🌧️', 'Rainy'];
+    if ([71, 73, 75, 85, 86].includes(code)) return ['❄️', 'Snowy'];
+    if ([95, 96, 99].includes(code)) return ['⛈️', 'Stormy'];
+    return [clear, 'Clear'];
+  }
+  function suggestion(code, tempF) {
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(code)) return 'indoor stops only tonight';
+    if (tempF !== null && tempF < 45) return 'skip the rooftop, stay cozy';
+    return 'good night for a rooftop stop';
+  }
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,is_day&temperature_unit=fahrenheit`)
+          .then(r => r.json())
+          .then(data => {
+            const cur = data.current;
+            if (!cur) return;
+            const [icon, label] = describeWeather(cur.weather_code, cur.is_day);
+            const tempF = Math.round(cur.temperature_2m);
+            document.getElementById('weather-line').textContent =
+              `${icon} ${tempF}°F · ${label} — ${suggestion(cur.weather_code, tempF)}`;
+          })
+          .catch(() => {});
+      },
+      () => {},
+      { timeout: 4000 }
+    );
+  }
+</script>
+
+<script>
+  // ---------- REAL GAMEPLAY ----------
+  // Ported from /preview/index.html (the live functional app) rather than
+  // rewritten — same Supabase project/schema/edge functions, just re-skinned
+  // to this page's markup/palette. Deliberately NOT included in this pass:
+  // venue search + maps, radius-tier slider, coin purchases/subscriptions
+  // (those stay on /shop/ and /preview/ for now — this covers the core game
+  // loop: sign in, start a real adventure, check in at real stops, earn
+  // real XP/coins/badges).
+  const SUPABASE_URL = 'https://aqaezprsbcyqpnnavdpv.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxYWV6cHJzYmN5cXBubmF2ZHB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MDU1NjksImV4cCI6MjA5OTM4MTU2OX0.8rpmMQSo6pgjdKfeeBFgY3lybvNVmFo4O10gjLg2kso';
+
+  const avSupabase = (window.supabase)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  const FREE_STOP_COUNT = 3;
+  const EXTRA_STOPS_LEVEL = 3;
+  const EXTRA_STOPS_COST = 200;
+  const EXTRA_STOPS_STOP_COUNT = 5;
+  const CHECKIN_PHOTO_COINS = 20; // must match muso-backend/supabase/functions/checkin/index.ts
+
+  let avSession = null;    // Supabase auth session, or null if signed out
+  let avProfile = null;    // { level, xp, adventure_coins, unlocked_stop_count, display_name }
+  let avBadgeKeys = new Set();
+  let avActiveAdventure = null; // { adventureId, routeId, route, stops, doneIds, ... }
+  let avCelebrationQueue = [];
+
+  async function avGetAccessToken() {
+    if (!avSupabase || !avSession) return null;
+    const { data } = await avSupabase.auth.getSession();
+    return data?.session?.access_token ?? null;
+  }
+
+  const AV_PROFILE_COLUMNS = 'id, xp, level, adventure_coins, unlocked_stop_count, display_name, avatar_url';
+
+  // Generic silhouette shown until a player picks a real avatar photo —
+  // same data URI as /preview/index.html's PLACEHOLDER_AVATAR_URL, kept in
+  // sync so the two pages never visibly diverge for a signed-in player who
+  // hasn't set a photo yet.
+  const AV_PLACEHOLDER_AVATAR_URL = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#2a2438"/><circle cx="50" cy="38" r="18" fill="#f7f3ff" fill-opacity="0.85"/><path d="M50 62c-22 0-34 12-34 30v8h68v-8c0-18-12-30-34-30z" fill="#f7f3ff" fill-opacity="0.85"/></svg>'
+  );
+
+  async function avFetchOrCreateProfile(userId, email) {
+    if (!avSupabase) return null;
+    const { data: existing } = await avSupabase.from('profiles').select(AV_PROFILE_COLUMNS).eq('id', userId).maybeSingle();
+    if (existing) return existing;
+    const displayName = (email || 'Explorer').split('@')[0];
+    const { data: created, error } = await avSupabase
+      .from('profiles').insert({ id: userId, display_name: displayName }).select(AV_PROFILE_COLUMNS).single();
+    if (error) { console.warn('Could not create profile:', error.message); return null; }
+    return created;
+  }
+
+  async function avRefreshProfileAndBadges() {
+    if (!avSession) { avProfile = null; avBadgeKeys = new Set(); return; }
+    avProfile = await avFetchOrCreateProfile(avSession.user.id, avSession.user.email);
+    const { data } = await avSupabase.from('profile_badges').select('badge_key').eq('profile_id', avSession.user.id);
+    avBadgeKeys = new Set((data || []).map(r => r.badge_key));
+  }
+
+  function avRenderAccountUI() {
+    const signedOutCard = document.getElementById('adventure-signed-out');
+    const levelText = document.getElementById('profile-level-text');
+    const realStats = document.getElementById('profile-real-stats');
+
+    if (!avSession) {
+      signedOutCard.style.display = '';
+      levelText.textContent = 'Sign in to track your real progress';
+      realStats.textContent = '';
+      avRenderAvatars();
+      return;
+    }
+    signedOutCard.style.display = 'none';
+    const level = avProfile?.level ?? 1;
+    const xp = avProfile?.xp ?? 0;
+    const coins = avProfile?.adventure_coins ?? 0;
+    levelText.textContent = `Level ${level} Explorer`;
+    realStats.innerHTML = `${xp} XP &nbsp;·&nbsp; 🪙 ${coins} coins &nbsp;·&nbsp; ${avBadgeKeys.size} badge${avBadgeKeys.size === 1 ? '' : 's'} earned`;
+    avRenderAvatars();
+  }
+
+  // Keeps the nav-dock avatar and the profile-sheet hero avatar in sync
+  // with avProfile.avatar_url — same field the Phase 3 avatar-capture flow
+  // on /preview/index.html writes to, so a photo set there shows up here
+  // too. Falls back to the shared placeholder silhouette pre-sign-in or
+  // before a player has set a photo, replacing what used to be a hardcoded
+  // assets/profile/shane-avatar.jpg on both elements.
+  function avRenderAvatars() {
+    const avatarUrl = avProfile?.avatar_url || AV_PLACEHOLDER_AVATAR_URL;
+    if (navAvatarImg) navAvatarImg.src = avatarUrl;
+    const heroImg = heroAvatar?.querySelector('img');
+    if (heroImg) heroImg.src = avatarUrl;
+  }
+
+  let avSigninCooldownTimer = null;
+  function avStartSigninCooldown(seconds) {
+    const btn = document.getElementById('av-signin-submit-btn');
+    if (!btn) return;
+    clearInterval(avSigninCooldownTimer);
+    let remaining = seconds;
+    btn.disabled = true;
+    const tick = () => {
+      btn.textContent = `Sign in (${remaining}s)`;
+      if (remaining <= 0) { clearInterval(avSigninCooldownTimer); btn.disabled = false; btn.textContent = 'Sign in'; return; }
+      remaining -= 1;
+    };
+    tick();
+    avSigninCooldownTimer = setInterval(tick, 1000);
+  }
+
+  window.avSendMagicLink = async function () {
+    const emailInput = document.getElementById('av-signin-email');
+    const msg = document.getElementById('av-signin-msg');
+    const email = emailInput.value.trim();
+    if (!email || !avSupabase) return;
+    msg.textContent = 'Sending link…';
+    const { error } = await avSupabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
+    if (!error) {
+      msg.textContent = 'Check your email for a sign-in link.';
+      avStartSigninCooldown(60);
+      return;
+    }
+    const waitMatch = error.message.match(/after (\d+) seconds?/i);
+    if (waitMatch) {
+      const wait = Number(waitMatch[1]);
+      msg.textContent = `You already have a link on the way — try again in ${wait}s.`;
+      avStartSigninCooldown(wait);
+    } else {
+      msg.textContent = `Error: ${error.message}`;
+    }
+  };
+
+  window.avSignOut = async function () {
+    if (!avSupabase) return;
+    await avSupabase.auth.signOut();
+    avSession = null; avProfile = null; avBadgeKeys = new Set(); avActiveAdventure = null;
+    avRenderAccountUI();
+    avLoadAdventureSection();
+  };
+
+  // ---------- START AN ADVENTURE ----------
+  function avAdventureStorageKey(userId) { return `muso_active_adventure_${userId}`; }
+
+  async function avLoadAdventureSection() {
+    const sub = document.getElementById('adventure-signed-out-sub');
+    const body = document.getElementById('adventure-body');
+    if (!avSession) {
+      if (sub) sub.textContent = 'Earn real XP, coins, and badges — check in at real stops as you go.';
+      body.innerHTML = '';
+      avActiveAdventure = null;
+      return;
+    }
+    body.innerHTML = '<div class="empty-state">Loading…</div>';
+
+    let resumeId = null;
+    try {
+      const saved = JSON.parse(localStorage.getItem(avAdventureStorageKey(avSession.user.id)) || 'null');
+      resumeId = saved?.adventureId || null;
+    } catch (e) {}
+
+    if (!resumeId) {
+      const { data: partyRows } = await avSupabase.from('party_members').select('party_id').eq('profile_id', avSession.user.id);
+      const partyIds = (partyRows || []).map(r => r.party_id);
+      if (partyIds.length) {
+        const { data: advRows } = await avSupabase.from('adventures').select('id').in('party_id', partyIds).eq('status', 'in_progress').limit(1);
+        if (advRows && advRows.length) resumeId = advRows[0].id;
+      }
+    }
+
+    if (resumeId) { await avLoadItinerary(resumeId); }
+    else { await avRenderRoutePicker(); }
+  }
+
+  async function avRenderRoutePicker() {
+    const body = document.getElementById('adventure-body');
+    const { data: routes, error } = await avSupabase.from('routes').select('id, title, description').order('created_at', { ascending: true });
+    if (error || !routes || !routes.length) {
+      body.innerHTML = '<div class="empty-state">No adventure routes are set up yet — check back soon.</div>';
+      return;
+    }
+    const counts = {};
+    for (const r of routes) {
+      const { count } = await avSupabase.from('route_stops').select('id', { count: 'exact', head: true }).eq('route_id', r.id);
+      counts[r.id] = count || 0;
+    }
+    const unlockedStopCount = avProfile?.unlocked_stop_count ?? FREE_STOP_COUNT;
+    body.innerHTML = routes.map(r => {
+      const total = counts[r.id];
+      const capped = total > unlockedStopCount;
+      return `
+      <div class="route-pick-card">
+        <div>
+          <div class="rp-title">${r.title}</div>
+          <div class="rp-desc">${r.description || ''}</div>
+          <div class="rp-meta">${capped ? `${unlockedStopCount} of ${total} stops — 🔒 unlock the rest once you're on the adventure` : `${total} stop${total === 1 ? '' : 's'}`}</div>
+        </div>
+        <button type="button" class="start-adv-btn" onclick="avStartAdventure('${r.id}')">Start</button>
+      </div>
+    `;
+    }).join('');
+  }
+
+  window.avStartAdventure = async function (routeId) {
+    const body = document.getElementById('adventure-body');
+    body.innerHTML = '<div class="empty-state">Starting your adventure…</div>';
+    try {
+      const { data: { session: freshSession } } = await avSupabase.auth.getSession();
+      if (!freshSession) {
+        avSession = null;
+        avRenderAccountUI();
+        body.innerHTML = '<div class="empty-state">Your sign-in session has expired. Please sign in again above.</div>';
+        return;
+      }
+      avSession = freshSession;
+      const userId = freshSession.user.id;
+
+      let { data: memberRows } = await avSupabase.from('party_members').select('party_id').eq('profile_id', userId).limit(1);
+      let partyId = memberRows && memberRows[0] ? memberRows[0].party_id : null;
+      if (!partyId) {
+        const { data: party, error: partyErr } = await avSupabase
+          .from('parties').insert({ name: `${avProfile?.display_name || 'Explorer'}'s Crew`, created_by: userId }).select('id').single();
+        if (partyErr) throw partyErr;
+        partyId = party.id;
+        const { error: memberErr } = await avSupabase.from('party_members').insert({ party_id: partyId, profile_id: userId, role: 'owner' });
+        if (memberErr) throw memberErr;
+      }
+
+      const { count: stopCount } = await avSupabase.from('route_stops').select('id', { count: 'exact', head: true }).eq('route_id', routeId);
+      const unlockedStopCount = avProfile?.unlocked_stop_count ?? FREE_STOP_COUNT;
+      const cappedStopCount = Math.min(stopCount || 0, unlockedStopCount);
+      const { data: adventure, error: advErr } = await avSupabase
+        .from('adventures').insert({ party_id: partyId, route_id: routeId, stop_count: cappedStopCount }).select('id').single();
+      if (advErr) throw advErr;
+
+      try { localStorage.setItem(avAdventureStorageKey(userId), JSON.stringify({ adventureId: adventure.id })); } catch (e) {}
+      await avLoadItinerary(adventure.id);
+    } catch (e) {
+      const isRlsError = e.code === '42501' || /row-level security/i.test(e.message || '');
+      body.innerHTML = isRlsError
+        ? '<div class="empty-state">Your sign-in session expired partway through. Please sign in again above.</div>'
+        : `<div class="empty-state">Couldn't start that adventure: ${e.message}</div>`;
+    }
+  };
+
+  async function avLoadItinerary(adventureId) {
+    const body = document.getElementById('adventure-body');
+    body.innerHTML = '<div class="empty-state">Loading your itinerary…</div>';
+
+    const { data: adv } = await avSupabase.from('adventures').select('id, route_id, status').eq('id', adventureId).maybeSingle();
+    if (!adv) {
+      try { localStorage.removeItem(avAdventureStorageKey(avSession.user.id)); } catch (e) {}
+      await avRenderRoutePicker();
+      return;
+    }
+
+    const token = await avGetAccessToken();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/route-detail?routeId=${adv.route_id}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
+    });
+    const routeData = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="empty-state">Couldn't load the itinerary: ${routeData.error || res.statusText}</div>`;
+      return;
+    }
+
+    const { data: checkIns } = await avSupabase.from('check_ins').select('route_stop_id').eq('adventure_id', adventureId);
+    const doneIds = new Set((checkIns || []).map(c => c.route_stop_id));
+
+    avActiveAdventure = {
+      adventureId, routeId: adv.route_id, route: routeData.route, stops: routeData.stops, doneIds,
+      unlockedStopCount: routeData.unlockedStopCount ?? FREE_STOP_COUNT,
+      totalStops: routeData.totalStops ?? routeData.stops.length,
+      stopsLocked: !!routeData.locked,
+    };
+    avRenderItinerary();
+  }
+
+  function avRenderItinerary() {
+    const body = document.getElementById('adventure-body');
+    if (!avActiveAdventure) return;
+    const { route, stops, doneIds, stopsLocked, unlockedStopCount, totalStops } = avActiveAdventure;
+    const firstIncompleteIdx = stops.findIndex(s => !doneIds.has(s.id));
+    const allVisibleDone = firstIncompleteIdx === -1;
+    const allDone = allVisibleDone && !stopsLocked;
+
+    const currentStopId = firstIncompleteIdx !== -1 ? stops[firstIncompleteIdx].id : null;
+    Object.keys(avPendingPhotoCaptures).forEach((stopId) => {
+      if (stopId !== currentStopId) {
+        URL.revokeObjectURL(avPendingPhotoCaptures[stopId].previewUrl);
+        delete avPendingPhotoCaptures[stopId];
+      }
+    });
+
+    const rows = stops.map((s, i) => {
+      const isDone = doneIds.has(s.id);
+      const isCurrent = i === firstIncompleteIdx;
+      const locked = !isDone && !isCurrent;
+      let status;
+      if (isDone) status = `<span class="is-status" style="color:var(--tertiary-deep);">✓ Checked in</span>`;
+      else if (isCurrent) {
+        const safeName = (s.name || 'this stop').replace(/'/g, "\\'");
+        const hasPhoto = !!avPendingPhotoCaptures[s.id];
+        const photoControl = hasPhoto
+          ? `<span class="photo-ready-badge" onclick="openPhotoBooth('${s.id}', '${safeName}')">📸 Photo ready ✓</span>`
+          : `<button type="button" class="photo-add-btn" onclick="openPhotoBooth('${s.id}', '${safeName}')">📸 +${CHECKIN_PHOTO_COINS} coins</button>`;
+        status = `
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+            ${photoControl}
+            <button type="button" class="checkin-btn" onclick="avCheckInStop('${s.id}')">Check in</button>
+          </div>
+        `;
+      }
+      else status = `<span class="is-status" style="opacity:0.5;">🔒 Locked</span>`;
+      return `
+        <div class="itinerary-stop ${isDone ? 'done' : ''}">
+          <div class="is-emoji">${s.emoji || '📍'}</div>
+          <div class="is-body">
+            <div class="is-name">${i + 1}. ${s.name}</div>
+            <div class="is-desc">${s.description || ''}</div>
+          </div>
+          ${status}
+        </div>
+      `;
+    }).join('');
+
+    const tierLockHtml = stopsLocked ? `
+      <div class="stop-tier-lock">
+        <div>🔒</div>
+        <div style="flex:1;">
+          <div class="stop-tier-lock-title">${totalStops - unlockedStopCount} more stop${totalStops - unlockedStopCount === 1 ? '' : 's'} available</div>
+          <div class="stop-tier-lock-desc">Reach Level ${EXTRA_STOPS_LEVEL} or spend ${EXTRA_STOPS_COST} coins to unlock all ${EXTRA_STOPS_STOP_COUNT}.</div>
+        </div>
+      </div>
+    ` : '';
+
+    body.innerHTML = `
+      ${allDone ? `
+        <div class="adventure-complete-banner">🏁 Adventure complete! Great work.</div>
+        <div style="text-align:center; margin-bottom:14px;"><button type="button" class="start-adv-btn" onclick="avClearActiveAdventure()">Start Another Adventure</button></div>
+      ` : ''}
+      <div style="font-family:'Fredoka',sans-serif; font-weight:700; margin-bottom:10px; color:var(--text);">${route.title}</div>
+      <div class="itinerary-list">${rows}</div>
+      ${tierLockHtml}
+    `;
+  }
+
+  window.avClearActiveAdventure = function () {
+    try { localStorage.removeItem(avAdventureStorageKey(avSession.user.id)); } catch (e) {}
+    avActiveAdventure = null;
+    avRenderRoutePicker();
+  };
+
+  window.avCheckInStop = async function (routeStopId) {
+    if (!avActiveAdventure || !avSession) return;
+    const token = await avGetAccessToken();
+
+    let photoUrl = null;
+    const pending = avPendingPhotoCaptures[routeStopId];
+    if (pending) {
+      try {
+        avShowToast('Uploading your photo…');
+        const path = `${avSession.user.id}/${avActiveAdventure.adventureId}_${routeStopId}_${Date.now()}.jpg`;
+        const { error: uploadError } = await avSupabase.storage.from('checkin-photos').upload(path, pending.blob, { contentType: 'image/jpeg', upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: pub } = avSupabase.storage.from('checkin-photos').getPublicUrl(path);
+        photoUrl = pub.publicUrl;
+      } catch (e) {
+        alert("Couldn't upload your photo, so this check-in won't earn coins: " + e.message);
+        photoUrl = null;
+      }
+    }
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ adventureId: avActiveAdventure.adventureId, routeStopId, photoUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Could not check in.'); return; }
+
+      if (avPendingPhotoCaptures[routeStopId]) {
+        URL.revokeObjectURL(avPendingPhotoCaptures[routeStopId].previewUrl);
+        delete avPendingPhotoCaptures[routeStopId];
+      }
+      avActiveAdventure.doneIds.add(routeStopId);
+      avRenderItinerary();
+
+      await avRefreshProfileAndBadges();
+      avRenderAccountUI();
+
+      const progress = data.progress || {};
+      let toastMsg = '';
+      if (progress.xpGained) {
+        toastMsg = progress.leveledUp ? `🎉 +${progress.xpGained} XP — Level Up! Now Level ${progress.newLevel}` : `+${progress.xpGained} XP`;
+      }
+      if (progress.coinsGained) {
+        toastMsg = toastMsg ? `${toastMsg}  •  📸 +${progress.coinsGained} coins` : `📸 +${progress.coinsGained} Adventure Coins!`;
+      }
+      if (progress.newBadges && progress.newBadges.length) avQueueCelebrations(progress.newBadges);
+      else if (toastMsg) avShowToast(toastMsg);
+    } catch (e) {
+      alert('Could not reach the check-in service: ' + e.message);
+    }
+  };
+
+  // ---------- PHOTO BOOTH ----------
+  let avPendingPhotoCaptures = {};
+  let pbStream = null, pbFacingMode = 'environment', pbTargetStopId = null, pbCapturedBlob = null;
+
+  window.openPhotoBooth = async function (routeStopId, stopName) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("This browser doesn't support camera access. Try a modern mobile or desktop browser.");
+      return;
+    }
+    pbTargetStopId = routeStopId;
+    document.getElementById('pb-stop-name').textContent = stopName || 'this stop';
+    document.getElementById('pb-coin-amt').textContent = CHECKIN_PHOTO_COINS;
+    document.getElementById('photobooth-overlay').removeAttribute('hidden');
+    await pbStartCamera();
+  };
+
+  async function pbStartCamera() {
+    pbStopStream();
+    const video = document.getElementById('pb-video');
+    const img = document.getElementById('pb-preview-img');
+    img.style.display = 'none'; video.style.display = 'block';
+    document.getElementById('pb-controls-live').style.display = 'flex';
+    document.getElementById('pb-controls-preview').style.display = 'none';
+    try {
+      pbStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: pbFacingMode }, audio: false });
+      video.srcObject = pbStream;
+    } catch (e) {
+      alert("Couldn't access your camera: " + e.message);
+      closePhotoBooth();
+    }
+  }
+  function pbStopStream() { if (pbStream) { pbStream.getTracks().forEach(t => t.stop()); pbStream = null; } }
+
+  window.switchCamera = async function () { pbFacingMode = pbFacingMode === 'environment' ? 'user' : 'environment'; await pbStartCamera(); };
+
+  window.capturePhoto = function () {
+    const video = document.getElementById('pb-video');
+    const canvas = document.getElementById('pb-canvas');
+    canvas.width = video.videoWidth || 720; canvas.height = video.videoHeight || 960;
+    const ctx = canvas.getContext('2d');
+    if (pbFacingMode === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      pbCapturedBlob = blob;
+      const img = document.getElementById('pb-preview-img');
+      img.src = URL.createObjectURL(blob);
+      img.style.display = 'block'; video.style.display = 'none';
+      document.getElementById('pb-controls-live').style.display = 'none';
+      document.getElementById('pb-controls-preview').style.display = 'flex';
+      pbStopStream();
+    }, 'image/jpeg', 0.85);
+  };
+  window.retakePhoto = function () { pbCapturedBlob = null; pbStartCamera(); };
+  window.useCapturedPhoto = function () {
+    if (!pbCapturedBlob || !pbTargetStopId) return;
+    const previewUrl = URL.createObjectURL(pbCapturedBlob);
+    if (avPendingPhotoCaptures[pbTargetStopId]) URL.revokeObjectURL(avPendingPhotoCaptures[pbTargetStopId].previewUrl);
+    avPendingPhotoCaptures[pbTargetStopId] = { blob: pbCapturedBlob, previewUrl };
+    closePhotoBooth();
+    avRenderItinerary();
+  };
+  window.closePhotoBooth = function () {
+    pbStopStream(); pbCapturedBlob = null; pbTargetStopId = null;
+    document.getElementById('photobooth-overlay').setAttribute('hidden', '');
+  };
+
+  // ---------- CELEBRATIONS + TOAST ----------
+  const AV_BADGE_PRAISE = {
+    first_checkin: { title: 'Adventure Begins!', praise: "You just checked in at your very first MUSO stop — your profile is now unlocked. Nice work getting started!" },
+    level_5: { title: 'Level 5!', praise: "You've leveled up to 5 — real venue search just unlocked for you." },
+    level_10: { title: 'Level 10!', praise: "Double digits! You're one of the most active explorers out there." },
+    adventure_completed: { title: 'Route Complete!', praise: "You checked in at every stop on this adventure. That's the whole thing — well played." },
+  };
+
+  function avQueueCelebrations(badges) {
+    const wasEmpty = avCelebrationQueue.length === 0;
+    avCelebrationQueue.push(...badges);
+    if (wasEmpty) avShowNextCelebration();
+  }
+  function avShowNextCelebration() {
+    const overlay = document.getElementById('celebration-overlay');
+    if (!avCelebrationQueue.length) { overlay.setAttribute('hidden', ''); return; }
+    const badge = avCelebrationQueue[0];
+    const copy = AV_BADGE_PRAISE[badge.key] || { title: badge.name, praise: badge.description };
+    document.getElementById('celeb-emoji').textContent = badge.emoji || '🏅';
+    document.getElementById('celeb-title').textContent = copy.title;
+    document.getElementById('celeb-praise').textContent = copy.praise;
+    document.getElementById('celeb-count').textContent = avCelebrationQueue.length > 1 ? `+${avCelebrationQueue.length - 1} more new badge${avCelebrationQueue.length > 2 ? 's' : ''} waiting` : '';
+    overlay.removeAttribute('hidden');
+  }
+  window.dismissCelebration = function () { avCelebrationQueue.shift(); avShowNextCelebration(); };
+
+  function avShowToast(text) {
+    const toast = document.getElementById('xp-toast');
+    toast.textContent = text;
+    toast.classList.add('show');
+    clearTimeout(window._avToastTimer);
+    window._avToastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  // ---------- BOOTSTRAP ----------
+  async function avInitAuth() {
+    if (!avSupabase) { avRenderAccountUI(); return; }
+    const { data: { session } } = await avSupabase.auth.getSession();
+    avSession = session;
+    await avRefreshProfileAndBadges();
+    avRenderAccountUI();
+    avLoadAdventureSection();
+
+    avSupabase.auth.onAuthStateChange(async (_event, session) => {
+      avSession = session;
+      await avRefreshProfileAndBadges();
+      avRenderAccountUI();
+      avLoadAdventureSection();
+    });
+  }
+  avInitAuth();
+</script>
+
+</body>
+</html>

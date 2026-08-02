@@ -5,22 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MUSO Adventures — Adventure Coins &amp; MUSO Pass</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --coral:#ff6b6b;
-    --tangerine:#ffa94d;
-    --teal:#0fb9b1;
-    --deep-teal:#0a7d78;
-    --plum:#5f4b8b;
-    --cream:#fff8f0;
-    --ink:#25213b;
+    --coral:#e8503f;
+    --tangerine:#f2994a;
+    --teal:#0ea5a0;
+    --deep-teal:#0b6e68;
+    --plum:#5b4b8a;
+    --cream:#fff7ed;
+    --ink:#2a2438;
     --card:#ffffff;
+    --shadow-rgb:42,36,56;
+  }
+  /* Binary day/night (see the shared detector script near the bottom of
+     body) — light by day, dark by night, no gradual transition. Card/ink/
+     bg are used pervasively via var(), so overriding just these three
+     cascades dark mode through nearly the whole page. */
+  :root[data-theme="dark"]{
+    --cream:#0a0912; --ink:#f7f3ff; --card:#1b1730; --shadow-rgb:0,0,0;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  html{scroll-behavior:smooth;}
+  html{scroll-behavior:smooth; font-size:106.25%;}
   body{
-    font-family:'Space Grotesk', sans-serif;
+    font-family:'Nunito', sans-serif;
     background:var(--cream);
     color:var(--ink);
   }
@@ -31,9 +39,9 @@
     position:sticky; top:0; z-index:50;
     display:flex; align-items:center; justify-content:space-between;
     padding:16px 6vw;
-    background:rgba(255,248,240,0.9);
+    background:var(--cream);
     backdrop-filter:blur(8px);
-    border-bottom:2px solid rgba(37,33,59,0.06);
+    border-bottom:2px solid rgba(var(--shadow-rgb),0.06);
   }
   .logo{
     font-family:'Fredoka', sans-serif;
@@ -49,13 +57,13 @@
   .shop-account-bar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
   .signin-form{ display:flex; gap:6px; }
   .signin-form input{
-    padding:8px 12px; border-radius:999px; border:1.5px solid rgba(37,33,59,0.15);
-    font-family:'Space Grotesk', sans-serif; font-size:0.85rem; width:170px;
+    padding:8px 12px; border-radius:999px; border:1.5px solid rgba(var(--shadow-rgb),0.15);
+    font-family:'Nunito', sans-serif; font-size:0.85rem; width:170px;
   }
   .signin-form input:focus{ outline:none; border-color:var(--teal); }
   .signin-btn{
-    padding:8px 16px; border-radius:999px; border:none; background:var(--ink); color:#fff;
-    font-weight:600; font-size:0.85rem; cursor:pointer; font-family:'Space Grotesk', sans-serif;
+    padding:8px 16px; border-radius:999px; border:none; background:var(--ink); color:var(--cream);
+    font-weight:600; font-size:0.85rem; cursor:pointer; font-family:'Nunito', sans-serif;
   }
   .signin-btn:hover{ background:var(--plum); }
   .signin-msg{ font-size:0.78rem; opacity:0.65; }
@@ -89,7 +97,7 @@
   }
   .unlock-card{
     background:var(--card); border-radius:18px; padding:22px 20px;
-    box-shadow:0 6px 20px rgba(37,33,59,0.08); text-align:center;
+    box-shadow:0 6px 20px rgba(var(--shadow-rgb),0.08); text-align:center;
     display:flex; flex-direction:column; gap:8px;
   }
   .unlock-card .u-emoji{ font-size:2.4rem; }
@@ -109,7 +117,7 @@
   }
   .pack-card{
     position:relative; background:var(--card); border-radius:20px; padding:28px 18px 22px;
-    box-shadow:0 6px 20px rgba(37,33,59,0.08); text-align:center;
+    box-shadow:0 6px 20px rgba(var(--shadow-rgb),0.08); text-align:center;
     display:flex; flex-direction:column; align-items:center; gap:6px;
     border:2px solid transparent; transition:transform .15s;
   }
@@ -120,13 +128,13 @@
     background:var(--coral); color:#fff; font-size:0.68rem; font-weight:700;
     padding:5px 14px; border-radius:999px; white-space:nowrap;
     font-family:'Fredoka',sans-serif; letter-spacing:0.02em;
-    box-shadow:0 3px 10px rgba(255,107,107,0.4);
+    box-shadow:0 3px 10px rgba(232,80,63,0.4);
   }
   .pack-card .p-coin{ font-size:2.4rem; margin-top:6px; }
   .pack-card .p-coins{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.25rem; }
   .pack-card .p-price{ font-size:1.5rem; font-weight:700; color:var(--ink); font-family:'Fredoka',sans-serif; }
   .p-save{
-    background:rgba(15,185,177,0.14); color:var(--deep-teal); font-weight:700; font-size:0.76rem;
+    background:rgba(14,165,160,0.14); color:var(--deep-teal); font-weight:700; font-size:0.76rem;
     padding:3px 10px; border-radius:999px; font-family:'Fredoka',sans-serif;
   }
   .p-perCoin{ font-size:0.72rem; opacity:0.55; }
@@ -145,10 +153,10 @@
   }
   .pass-card{
     background:var(--card); border-radius:22px; padding:32px 28px;
-    box-shadow:0 8px 28px rgba(37,33,59,0.1); display:flex; flex-direction:column; gap:14px;
+    box-shadow:0 8px 28px rgba(var(--shadow-rgb),0.1); display:flex; flex-direction:column; gap:14px;
     border:2px solid transparent;
   }
-  .pass-card.plus{ border-color:var(--plum); background:linear-gradient(180deg, #ffffff 0%, #f7f4fc 100%); }
+  .pass-card.plus{ border-color:var(--plum); background:var(--card); }
   .pass-card .pass-name{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1.3rem; display:flex; align-items:center; gap:8px; }
   .pass-card .pass-price{ font-size:2rem; font-weight:700; font-family:'Fredoka',sans-serif; }
   .pass-card .pass-price span{ font-size:0.95rem; font-weight:500; opacity:0.6; }
@@ -171,11 +179,115 @@
   .manage-sub-link{ font-size:0.85rem; opacity:0.75; cursor:pointer; font-weight:500; text-align:center; }
   .manage-sub-link:hover{ opacity:1; text-decoration:underline; }
 
+  /* ---------- EXPAND SHEET SHELL (shared FLIP-animation shell used by
+     the MUSO Pass sheet, the coin-pack sheet, and the badge celebration —
+     each supplies its own inner content classes) ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(var(--shadow-rgb),0.32);
+    opacity:0; transition:opacity .3s ease; z-index:200; pointer-events:none;
+  }
+  .sheet-backdrop.show{ opacity:1; pointer-events:auto; }
+  .expand-sheet{
+    position:fixed; overflow:hidden; background:var(--cream);
+    box-shadow:0 24px 60px rgba(var(--shadow-rgb),0.28);
+    transition:top .42s cubic-bezier(.22,.85,.32,1), left .42s cubic-bezier(.22,.85,.32,1),
+      width .42s cubic-bezier(.22,.85,.32,1), height .42s cubic-bezier(.22,.85,.32,1),
+      border-radius .42s cubic-bezier(.22,.85,.32,1);
+    z-index:201; display:flex; flex-direction:column;
+  }
+  .expand-sheet[hidden]{ display:none; }
+  .expand-sheet-scroll{ overflow-y:auto; flex:1; padding:26px 26px 100px; }
+
+  /* ---------- shared sheet chrome (topbar/back/reveal stagger/cta-wrap —
+     used by both the Pass sheet and the coin-pack sheet) ---------- */
+  .pass-sheet-topbar{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 18px;
+    opacity:0; transform:translateY(-6px); transition:opacity .3s ease, transform .3s ease;
+  }
+  .expand-sheet.content-in .pass-sheet-topbar{ opacity:1; transform:translateY(0); }
+  .pass-sheet-back{
+    width:36px; height:36px; border-radius:50%; background:var(--card); border:none;
+    box-shadow:0 3px 10px rgba(var(--shadow-rgb),0.12); cursor:pointer; font-size:1rem;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .pass-sheet-icon{
+    width:64px; height:64px; border-radius:20px; margin:6px auto 14px;
+    background:linear-gradient(135deg, var(--coral), var(--plum));
+    display:flex; align-items:center; justify-content:center; font-size:1.8rem;
+  }
+  .pass-sheet-title{ text-align:center; font-size:1.6rem; margin-bottom:8px; }
+  .pass-sheet-title .pre{ opacity:0; transition:opacity .3s ease .12s; }
+  .expand-sheet.content-in .pass-sheet-title .pre{ opacity:1; }
+  .pass-sheet-sub{ text-align:center; opacity:0.72; font-size:0.95rem; max-width:420px; margin:0 auto 22px; line-height:1.5; }
+
+  .reveal-item{ opacity:0; transform:translateY(14px); transition:opacity .4s ease, transform .4s ease; }
+  .expand-sheet.content-in .reveal-item{ opacity:1; transform:translateY(0); }
+  .expand-sheet.content-in .reveal-item.r1{ transition-delay:.05s; }
+  .expand-sheet.content-in .reveal-item.r2{ transition-delay:.11s; }
+  .expand-sheet.content-in .reveal-item.r3{ transition-delay:.17s; }
+  .expand-sheet.content-in .reveal-item.r4{ transition-delay:.23s; }
+  .expand-sheet.content-in .reveal-item.r5{ transition-delay:.29s; }
+  .expand-sheet.content-in .reveal-item.r6{ transition-delay:.35s; }
+
+  .pass-sheet-perks{
+    list-style:none; display:flex; flex-direction:column; gap:12px;
+    background:var(--card); border-radius:18px; padding:20px; margin-bottom:22px;
+    box-shadow:0 6px 20px rgba(var(--shadow-rgb),0.06);
+  }
+  .pass-sheet-perks li{ display:flex; align-items:center; justify-content:space-between; font-size:0.94rem; gap:10px; }
+  .pass-sheet-perks li .label{ display:flex; align-items:center; gap:8px; }
+  .pass-sheet-perks li .check-dot{
+    width:22px; height:22px; border-radius:50%; background:var(--deep-teal); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:0.75rem; flex-shrink:0;
+  }
+  .pass-sheet-perks li .count-dot{
+    min-width:28px; height:22px; padding:0 8px; border-radius:999px; background:var(--tangerine); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:0.78rem; font-weight:700; flex-shrink:0;
+    font-family:'Fredoka',sans-serif;
+  }
+
+  .pass-sheet-tier{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--card); border:2px solid rgba(var(--shadow-rgb),0.1); border-radius:16px;
+    padding:16px 18px; margin-bottom:12px; cursor:pointer; transition:border-color .2s, box-shadow .2s;
+  }
+  .pass-sheet-tier.selected{ border-color:var(--coral); box-shadow:0 4px 16px rgba(232,80,63,0.18); }
+  .pass-sheet-tier .pt-name{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:1rem; display:flex; align-items:center; gap:8px; }
+  .pass-sheet-tier .pt-price{ font-size:0.85rem; opacity:0.65; margin-top:2px; }
+  .pass-sheet-tier .pt-radio{
+    width:22px; height:22px; border-radius:50%; border:2px solid rgba(var(--shadow-rgb),0.25);
+    flex-shrink:0; position:relative; transition:border-color .2s;
+  }
+  .pass-sheet-tier.selected .pt-radio{ border-color:var(--coral); }
+  .pass-sheet-tier.selected .pt-radio::after{
+    content:""; position:absolute; inset:3px; border-radius:50%; background:var(--coral);
+  }
+
+  .pass-sheet-cta-wrap{
+    position:absolute; left:0; right:0; bottom:0; padding:16px 26px 22px;
+    background:linear-gradient(180deg, rgba(255,247,237,0) 0%, var(--cream) 30%);
+    opacity:0; transform:translateY(8px); transition:opacity .35s ease .4s, transform .35s ease .4s;
+  }
+  .pass-sheet.content-in .pass-sheet-cta-wrap{ opacity:1; transform:translateY(0); }
+  .pass-sheet-cta{
+    width:100%; padding:14px 0; border-radius:999px; border:none;
+    background:linear-gradient(135deg, var(--coral), var(--plum)); color:#fff;
+    font-weight:700; font-family:'Fredoka',sans-serif; font-size:1rem; cursor:pointer;
+  }
+  .pass-sheet-cta:disabled{ opacity:0.65; cursor:default; }
+  .pass-sheet-fine{ text-align:center; font-size:0.74rem; opacity:0.55; margin-top:8px; }
+
+  @media (prefers-reduced-motion: reduce){
+    .expand-sheet, .sheet-backdrop, .reveal-item, .pass-sheet-topbar, .pass-sheet-title .pre, .pass-sheet-cta-wrap, .coin-sheet-topbar, .coin-sheet-cta-wrap{
+      transition-duration:.01ms !important;
+    }
+  }
+
   /* ---------- FAQ ---------- */
   .faq-list{ display:flex; flex-direction:column; gap:14px; margin-top:32px; }
   .faq-item{
     background:var(--card); border-radius:16px; padding:18px 22px;
-    box-shadow:0 4px 14px rgba(37,33,59,0.06);
+    box-shadow:0 4px 14px rgba(var(--shadow-rgb),0.06);
   }
   .faq-q{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:0.98rem; margin-bottom:6px; }
   .faq-a{ font-size:0.88rem; opacity:0.75; line-height:1.5; }
@@ -183,6 +295,17 @@
   footer{ padding:6vh 6vw 5vh; text-align:center; }
   footer p{ opacity:0.55; font-size:0.85rem; max-width:520px; margin:0 auto; line-height:1.5; }
 </style>
+<script>
+  // Binary day/night, driven by the viewer's own device clock (always
+  // local time already — no geolocation needed). Runs synchronously
+  // before paint so there's no flash of the wrong theme. Same 6am/8pm
+  // boundary used across every MUSO Adventures page.
+  (function(){
+    var h = new Date().getHours();
+    var isDay = h >= 6 && h < 20;
+    document.documentElement.setAttribute('data-theme', isDay ? 'light' : 'dark');
+  })();
+</script>
 </head>
 <body>
 
@@ -354,7 +477,7 @@
         <li><span class="check">✓</span> 1 visual theme unlocked for you</li>
       </ul>
       <div class="best-for">Best for: casual regulars who play a few times a month.</div>
-      <button type="button" class="subscribe-btn" data-tier="pass" onclick="subscribeToPass(this)">Subscribe</button>
+      <button type="button" class="subscribe-btn" data-tier="pass" onclick="openPassSheet('pass', this)">Subscribe</button>
     </div>
     <div class="pass-card plus">
       <div class="pass-name">🎟️ MUSO Pass+</div>
@@ -368,7 +491,7 @@
         <li><span class="check">✓</span> 1 free real-world reward redemption every month</li>
       </ul>
       <div class="best-for">Best for: frequent explorers who want everything unlocked at once.</div>
-      <button type="button" class="subscribe-btn" data-tier="pass_plus" onclick="subscribeToPass(this)">Subscribe</button>
+      <button type="button" class="subscribe-btn" data-tier="pass_plus" onclick="openPassSheet('pass_plus', this)">Subscribe</button>
     </div>
   </div>
   <div id="manage-sub-wrap" style="text-align:center; margin-top:18px;"></div>
@@ -402,6 +525,27 @@
 <footer>
   <p>Prices shown in USD. Adventure Coins and MUSO Pass are used only within MUSO Adventures and have no cash value outside the app.</p>
 </footer>
+
+<div class="sheet-backdrop" id="pass-sheet-backdrop" onclick="closePassSheet()"></div>
+<div class="pass-sheet expand-sheet" id="pass-sheet" hidden>
+  <div class="expand-sheet-scroll">
+    <div class="pass-sheet-topbar">
+      <button type="button" class="pass-sheet-back" onclick="closePassSheet()" aria-label="Close">&larr;</button>
+    </div>
+    <div class="pass-sheet-icon reveal-item r1">🎟️</div>
+    <h2 class="pass-sheet-title reveal-item r1"><span class="pre">Unlock </span>MUSO Pass</h2>
+    <p class="pass-sheet-sub reveal-item r1">More adventures, more unlocks — for less than one round of drinks a month.</p>
+
+    <ul class="pass-sheet-perks reveal-item r2" id="pass-sheet-perks"></ul>
+
+    <div class="reveal-item r3" id="pass-sheet-tiers"></div>
+  </div>
+
+  <div class="pass-sheet-cta-wrap">
+    <button type="button" class="pass-sheet-cta" id="pass-sheet-cta" data-tier="pass" onclick="subscribeToPass(this)">Subscribe — $7.99/month</button>
+    <p class="pass-sheet-fine">Cancel anytime from your account. Renews monthly until canceled.</p>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
@@ -552,6 +696,139 @@
       btn.disabled = false;
       btn.textContent = originalText;
     }
+  };
+
+  // ---------- PASS SHEET (expand-from-card animation) ----------
+  const PASS_TIERS = {
+    pass: {
+      name: '🎟️ MUSO Pass', price: 7.99,
+      perks: [
+        { label: '50-mile search range, all month', kind: 'check' },
+        { label: 'Reroute tokens', kind: 'count', value: 3 },
+        { label: 'Exclusive subscriber badge', kind: 'check' },
+        { label: 'Coins every month', kind: 'count', value: 750, suffix: '🪙' },
+      ],
+    },
+    pass_plus: {
+      name: '🎟️ MUSO Pass+', price: 14.99,
+      perks: [
+        { label: 'Everything in MUSO Pass', kind: 'check' },
+        { label: 'All 5 stops auto-unlocked', kind: 'check' },
+        { label: 'Real venue search, all month', kind: 'check' },
+        { label: 'Coins every month', kind: 'count', value: 1800, suffix: '🪙' },
+      ],
+    },
+  };
+
+  function animateCount(el, to, suffix) {
+    const duration = 650;
+    const start = performance.now();
+    function tick(now) {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(eased * to).toLocaleString() + (suffix ? ' ' + suffix : '');
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function renderPassSheetPerks(key, animated) {
+    const tier = PASS_TIERS[key];
+    const perksEl = document.getElementById('pass-sheet-perks');
+    perksEl.innerHTML = tier.perks.map((p, i) => `
+      <li>
+        <span class="label">
+          ${p.kind === 'check' ? '<span class="check-dot">&check;</span>' : ''}
+          ${p.label}
+        </span>
+        ${p.kind === 'count' ? `<span class="count-dot" data-final="${p.value}" data-suffix="${p.suffix || ''}">${animated ? 0 : p.value}</span>` : ''}
+      </li>
+    `).join('');
+
+    if (animated) {
+      // Kick off the count-up perks after the sheet's reveal transition
+      // starts — matches the reference animation's ticking XP-style
+      // counters rather than having numbers just appear.
+      setTimeout(() => {
+        perksEl.querySelectorAll('.count-dot').forEach(dot => {
+          animateCount(dot, Number(dot.dataset.final), dot.dataset.suffix);
+        });
+      }, 150);
+    }
+
+    const cta = document.getElementById('pass-sheet-cta');
+    cta.dataset.tier = key;
+    cta.textContent = `Subscribe — $${tier.price.toFixed(2)}/month`;
+  }
+
+  function renderPassSheetTier(key) {
+    const tiersEl = document.getElementById('pass-sheet-tiers');
+    tiersEl.innerHTML = Object.keys(PASS_TIERS).map(k => {
+      const t = PASS_TIERS[k];
+      return `
+        <div class="pass-sheet-tier ${k === key ? 'selected' : ''}" data-tier="${k}" onclick="selectPassTier('${k}')">
+          <div>
+            <div class="pt-name">${t.name}</div>
+            <div class="pt-price">$${t.price.toFixed(2)} / month</div>
+          </div>
+          <div class="pt-radio"></div>
+        </div>
+      `;
+    }).join('');
+
+    renderPassSheetPerks(key, true);
+  }
+
+  window.selectPassTier = function (key) {
+    document.querySelectorAll('.pass-sheet-tier').forEach(el => {
+      el.classList.toggle('selected', el.dataset.tier === key);
+    });
+    // Perks differ meaningfully between Pass and Pass+ (not just price), so
+    // switching tiers has to re-render the whole perks list, not just the
+    // price — a plain re-render (not the count-up animation) since this is
+    // an instant selection swap, not the sheet's initial reveal.
+    renderPassSheetPerks(key, false);
+  };
+
+  window.openPassSheet = function (tier, originBtn) {
+    const card = originBtn.closest('.pass-card');
+    const rect = card.getBoundingClientRect();
+    const sheet = document.getElementById('pass-sheet');
+    const backdrop = document.getElementById('pass-sheet-backdrop');
+
+    renderPassSheetTier(tier);
+
+    sheet.hidden = false;
+    sheet.style.transition = 'none';
+    sheet.style.top = rect.top + 'px';
+    sheet.style.left = rect.left + 'px';
+    sheet.style.width = rect.width + 'px';
+    sheet.style.height = rect.height + 'px';
+    sheet.style.borderRadius = '22px';
+    sheet.classList.remove('content-in');
+    void sheet.offsetWidth; // force reflow so the collapsed state actually paints first
+    sheet.style.transition = '';
+    backdrop.classList.add('show');
+    document.body.style.overflow = 'hidden';
+
+    requestAnimationFrame(() => {
+      sheet.style.top = '0';
+      sheet.style.left = '0';
+      sheet.style.width = '100vw';
+      sheet.style.height = '100vh';
+      sheet.style.borderRadius = '0px';
+    });
+
+    setTimeout(() => sheet.classList.add('content-in'), 380);
+  };
+
+  window.closePassSheet = function () {
+    const sheet = document.getElementById('pass-sheet');
+    const backdrop = document.getElementById('pass-sheet-backdrop');
+    sheet.classList.remove('content-in');
+    backdrop.classList.remove('show');
+    document.body.style.overflow = '';
+    setTimeout(() => { sheet.hidden = true; }, 420);
   };
 
   window.subscribeToPass = async function (btn) {
