@@ -172,6 +172,8 @@ type Candidate = {
   image_url: string | null;
   partner_tier: string;
   distance_miles: number;
+  muso_rating: number | null;
+  muso_rating_count: number | null;
 };
 
 // Runs a live Yelp search, upserts results into `venues` (via the existing
@@ -203,10 +205,23 @@ async function searchNearbyVenues(
       `https://api.yelp.com/v3/businesses/search?${yelpParams.toString()}`,
       { headers: { Authorization: `Bearer ${yelpKey}` } },
     );
-    if (!yelpRes.ok) return [];
+    if (!yelpRes.ok) {
+      // Was silently returning [] here — indistinguishable from a genuinely
+      // empty search, so a Yelp-side failure (rate limit, bad/expired key,
+      // etc.) showed players the exact same "No matching venues found
+      // nearby" message as an actual empty result. Logged so the real
+      // cause is visible in this function's Supabase dashboard logs.
+      const errBody = await yelpRes.text().catch(() => "");
+      console.error(`Yelp search failed: ${yelpRes.status} ${yelpRes.statusText} — ${errBody.slice(0, 500)}`);
+      return [];
+    }
     const yelpData = await yelpRes.json();
     businesses = Array.isArray(yelpData.businesses) ? yelpData.businesses : [];
-  } catch {
+    if (!businesses.length) {
+      console.log(`Yelp search returned 0 businesses: lat=${opts.lat} lng=${opts.lng} radiusMeters=${radiusMeters} categories=${opts.categories.join(",") || "(none)"} price=${yelpPrice ?? "(any)"}`);
+    }
+  } catch (e) {
+    console.error("Yelp search threw:", e);
     return [];
   }
 
@@ -232,20 +247,43 @@ async function searchNearbyVenues(
     };
   }).filter((r) => r.yelp_id && r.lat != null && r.lng != null);
 
-  if (!rows.length) return [];
-
-  try {
-    await admin.rpc("upsert_yelp_venues", { rows: JSON.stringify(rows) });
-  } catch {
+  if (!rows.length) {
+    console.log(`Yelp returned ${businesses.length} businesses but 0 survived the yelp_id/lat/lng filter`);
     return [];
   }
 
-  const { data: candidates } = await admin.rpc("nearby_candidate_venues", {
+  try {
+    // rows is passed as a plain array, NOT JSON.stringify(rows) — the SQL
+    // function's `rows jsonb` parameter expects a genuine JSONB array.
+    // Stringifying it here double-encodes it: PostgREST hands Postgres a
+    // JSON *string* whose contents happen to look like an array, which
+    // Postgres casts to a JSONB scalar (a string), not a JSONB array — so
+    // jsonb_array_elements(rows) inside the function failed on every call
+    // with "cannot extract elements from a scalar", silently caught below
+    // and surfacing to players as "No matching venues found nearby."
+    const { error: upsertErr } = await admin.rpc("upsert_yelp_venues", { rows });
+    if (upsertErr) {
+      console.error("upsert_yelp_venues RPC error:", JSON.stringify(upsertErr));
+      return [];
+    }
+  } catch (e) {
+    console.error("upsert_yelp_venues threw:", e);
+    return [];
+  }
+
+  const { data: candidates, error: nearbyErr } = await admin.rpc("nearby_candidate_venues", {
     p_lat: opts.lat,
     p_lng: opts.lng,
     p_radius_miles: opts.radiusMiles,
     p_yelp_ids: rows.map((r) => r.yelp_id),
   });
+  if (nearbyErr) {
+    console.error("nearby_candidate_venues RPC error:", JSON.stringify(nearbyErr));
+    return [];
+  }
+  if (!candidates?.length) {
+    console.log(`nearby_candidate_venues returned 0 rows for ${rows.length} upserted yelp_ids, radius=${opts.radiusMiles}mi, lat=${opts.lat}, lng=${opts.lng}`);
+  }
 
   return (candidates ?? []) as Candidate[];
 }
@@ -335,12 +373,32 @@ function pickContrastingChoices(candidates: Candidate[], n: number): (Candidate 
 
   const chosen: (Candidate & { theme: Theme })[] = [];
   const usedIds = new Set<string>();
+  const usedThemeKeys = new Set<string>();
 
   for (const { theme, items } of shuffle([...byTheme.values()])) {
     if (chosen.length >= n) break;
     const pick = weightedRandomPick(items);
     chosen.push({ ...pick, theme });
     usedIds.add(pick.id);
+    usedThemeKeys.add(theme.key);
+  }
+
+  // Backfill only from themes not already represented first — the old
+  // version backfilled from ANY remaining candidate regardless of theme,
+  // so a market with only 1 "cozy" spot but 5 "foodie" ones could end up
+  // offering the same theme twice. A repeated theme is now only allowed as
+  // an absolute last resort, when fewer than n distinct themes exist among
+  // ALL nearby candidates.
+  if (chosen.length < n) {
+    const remaining = candidates.filter((c) => !usedIds.has(c.id) && !usedThemeKeys.has(classifyTheme(c).key));
+    while (chosen.length < n && remaining.length) {
+      const pick = weightedRandomPick(remaining);
+      const theme = classifyTheme(pick);
+      chosen.push({ ...pick, theme });
+      usedIds.add(pick.id);
+      usedThemeKeys.add(theme.key);
+      remaining.splice(remaining.findIndex((c) => c.id === pick.id), 1);
+    }
   }
 
   if (chosen.length < n) {
@@ -413,6 +471,84 @@ Deno.serve(async (req) => {
   }
 
   const action = body.action;
+
+  // ---------------------------------------------------------------
+  // ensureParty — returns the caller's existing party, creating one if
+  // this is their first adventure. Moved server-side (admin client,
+  // bypasses RLS) after the equivalent client-side path — a plain
+  // authenticated INSERT into parties with created_by = auth.uid() —
+  // was reproducibly rejected by Postgres's RLS check even though every
+  // individual piece (active role, auth.uid(), the with-check text)
+  // checked out correctly in isolation when tested directly against the
+  // database. Rather than keep chasing what looks like a genuine
+  // platform-level anomaly, this sidesteps it entirely — and it's more
+  // consistent with how the rest of this function already creates
+  // routes/route_stops/adventures via the admin client anyway.
+  // ---------------------------------------------------------------
+  if (action === "ensureParty") {
+    const { data: memberRows, error: memberErr } = await admin
+      .from("party_members")
+      .select("party_id")
+      .eq("profile_id", userId)
+      .limit(1);
+    if (memberErr) return jsonResponse({ error: memberErr.message }, 400);
+
+    let partyId = memberRows && memberRows[0] ? memberRows[0].party_id : null;
+    if (!partyId) {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("display_name")
+        .eq("id", userId)
+        .maybeSingle();
+      const { data: party, error: partyErr } = await admin
+        .from("parties")
+        .insert({ name: `${profile?.display_name || "Explorer"}'s Crew`, created_by: userId })
+        .select("id")
+        .single();
+      if (partyErr) return jsonResponse({ error: partyErr.message }, 400);
+      partyId = party.id;
+
+      const { error: memberInsertErr } = await admin
+        .from("party_members")
+        .insert({ party_id: partyId, profile_id: userId, role: "owner" });
+      if (memberInsertErr) return jsonResponse({ error: memberInsertErr.message }, 400);
+    }
+
+    return jsonResponse({ partyId });
+  }
+
+  // ---------------------------------------------------------------
+  // leaveAdventure — lets a player abandon their current in-progress
+  // adventure (curated or real-venue) so they can start a fresh one.
+  // Server-side (admin client) for the same reason ensureParty is: there's
+  // no UPDATE policy on adventures at all (only select/insert), so a
+  // direct client-side update would be rejected outright.
+  // ---------------------------------------------------------------
+  if (action === "leaveAdventure") {
+    const adventureId = typeof body.adventureId === "string" ? body.adventureId : null;
+    if (!adventureId) return jsonResponse({ error: "adventureId is required" }, 400);
+
+    const { data: adventure, error: advErr } = await admin
+      .from("adventures")
+      .select("id, party_id, status")
+      .eq("id", adventureId)
+      .maybeSingle();
+    if (advErr || !adventure) return jsonResponse({ error: "Adventure not found." }, 404);
+    if (!(await isPartyMember(admin, adventure.party_id, userId))) {
+      return jsonResponse({ error: "You're not a member of that party." }, 403);
+    }
+    if (adventure.status !== "in_progress") {
+      return jsonResponse({ error: "This adventure isn't in progress anymore." }, 400);
+    }
+
+    const { error: updateErr } = await admin
+      .from("adventures")
+      .update({ status: "abandoned" })
+      .eq("id", adventureId);
+    if (updateErr) return jsonResponse({ error: updateErr.message }, 400);
+
+    return jsonResponse({ ok: true });
+  }
 
   // ---------------------------------------------------------------
   // init — creates the route + all placeholder stops, reveals stop 1
