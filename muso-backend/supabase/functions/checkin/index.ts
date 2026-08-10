@@ -238,12 +238,19 @@ async function sendSms(to: string, body: string): Promise<void> {
 
 const CHECKIN_XP = 50;
 // Must match CHECKIN_PHOTO_COINS in preview/index.html. The client has
-// displayed "+20 coins" messaging for a check-in photo since the photo
+// displayed "+N coins" messaging for a check-in photo since the photo
 // booth shipped, but nothing here ever actually credited it — this was a
 // real gap, not intentional, found while wiring up per-adventure coin
 // attribution (0018_adventure_attribution.sql adds 'photo_bonus' to the
 // coin_transactions reason allow-list this now writes against).
-const CHECKIN_PHOTO_COINS = 20;
+const CHECKIN_PHOTO_COINS = 10;
+// One-time bonus for finishing every stop on an adventure — same
+// award-once spirit as the 'adventure_completed' badge just below, but a
+// coin credit isn't naturally idempotent like a badge row is, so this
+// only ever fires from the completion branch that itself only runs once
+// (adventures.status flips to 'completed' there). 'adventure_complete' is
+// in the coin_transactions reason allow-list via 0020_adventure_complete_coins.sql.
+const ADVENTURE_COMPLETE_COINS = 20;
 
 type Badge = { key: string; name: string; description: string; emoji: string };
 type Progress = {
@@ -253,6 +260,13 @@ type Progress = {
   newLevel?: number;
   leveledUp: boolean;
   newBadges: Badge[];
+  // Whether ANYONE had checked into this stop before this call. Check-ins
+  // are per-person now, so a stop can be completed more than once (once
+  // per party member) — real-venue-adventure's advance() must only run
+  // the first time, or a teammate checking into an already-done stop
+  // would prematurely reveal stops further ahead. See preview/index.html's
+  // checkInStop().
+  isFirstCheckinForStop: boolean;
 };
 
 Deno.serve(async (req) => {
@@ -294,9 +308,32 @@ Deno.serve(async (req) => {
   }
   const userId = userData.user.id;
 
+  // From here on, use the admin client — we need to read venue_contacts and
+  // party/route info that a player shouldn't have direct table access to.
+  const admin = getSupabaseAdmin();
+
+  // 0. Checked BEFORE inserting this check-in: has anyone else in the party
+  //    already checked in at this exact stop? Now that check-ins are per
+  //    person (0027_social_party_invites.sql — the unique constraint is on
+  //    adventure_id + route_stop_id + checked_in_by, not just the first
+  //    two), a stop can be checked into more than once, once per party
+  //    member. real-venue-adventure's advance() reveals the *next*
+  //    placeholder stop and must only fire the first time a stop is
+  //    completed — the caller (preview/index.html's checkInStop()) uses
+  //    this flag to decide whether to call it, so a second/third party
+  //    member checking into an already-completed stop doesn't prematurely
+  //    reveal stops further ahead.
+  const { count: priorCheckinsAtStop } = await admin
+    .from("check_ins")
+    .select("id", { count: "exact", head: true })
+    .eq("route_stop_id", routeStopId);
+  const isFirstCheckinForStop = (priorCheckinsAtStop ?? 0) === 0;
+
   // 1. Insert the check-in as the user (RLS confirms they belong to this
-  //    adventure's party). Duplicate check-ins are blocked by the unique
-  //    constraint on (adventure_id, route_stop_id).
+  //    adventure's party). One check-in per person per stop is enforced by
+  //    the unique constraint on (adventure_id, route_stop_id, checked_in_by)
+  //    — a duplicate is this exact same person checking into this exact
+  //    stop again, not a different party member.
   const { data: checkIn, error: checkInErr } = await userClient
     .from("check_ins")
     .insert({
@@ -315,10 +352,6 @@ Deno.serve(async (req) => {
       alreadyCheckedIn ? 409 : 400,
     );
   }
-
-  // From here on, use the admin client — we need to read venue_contacts and
-  // party/route info that a player shouldn't have direct table access to.
-  const admin = getSupabaseAdmin();
 
   // 2. Progress: xp for checking in, plus whatever badges this check-in
   //    just earned. This runs regardless of how the venue-notification step
@@ -344,7 +377,7 @@ Deno.serve(async (req) => {
   };
   // Best-effort — an odd coin-credit failure shouldn't fail the check-in
   // itself, it just means this particular photo bonus didn't land.
-  const coinsGained = photoUrl && !coinsResultRes?.error ? CHECKIN_PHOTO_COINS : 0;
+  let coinsGained = photoUrl && !coinsResultRes?.error ? CHECKIN_PHOTO_COINS : 0;
   const isFirstCheckin = (totalCheckins ?? 0) === 1;
 
   const badgeKeysToAward: string[] = [];
@@ -358,20 +391,43 @@ Deno.serve(async (req) => {
     .eq("id", routeStopId)
     .single();
 
-  // If this check-in just finished every stop on the route, mark the
-  // adventure completed and award the route-complete badge.
+  // Two different questions now that check-ins are per person, not one
+  // shared row per stop: (a) has the PARTY finished every stop, at least
+  // one check-in each, regardless of who — that's what unlocks the next
+  // placeholder via advance() and flips the adventure to "completed" for
+  // everyone's view; (b) has THIS PERSON individually checked into every
+  // stop — that's what earns *their own* completion badge/bonus. A party
+  // member who only ever checked into 1 of 3 stops (because teammates
+  // covered the rest) shouldn't get personal completion credit just
+  // because the party as a whole finished.
   if (!stopErr && currentStop) {
-    const [{ count: stopCount }, { count: doneCount }] = await Promise.all([
+    const [{ count: stopCount }, { data: partyCheckinStops }, { data: userCheckinStops }] = await Promise.all([
       admin.from("route_stops").select("id", { count: "exact", head: true }).eq("route_id", currentStop.route_id),
-      admin.from("check_ins").select("id", { count: "exact", head: true }).eq("adventure_id", adventureId),
+      admin.from("check_ins").select("route_stop_id").eq("adventure_id", adventureId),
+      admin.from("check_ins").select("route_stop_id").eq("adventure_id", adventureId).eq("checked_in_by", userId),
     ]);
+    const partyDoneStops = new Set((partyCheckinStops ?? []).map((r) => r.route_stop_id)).size;
+    const userDoneStops = new Set((userCheckinStops ?? []).map((r) => r.route_stop_id)).size;
 
-    if ((stopCount ?? 0) > 0 && (doneCount ?? 0) >= (stopCount ?? 0)) {
-      badgeKeysToAward.push("adventure_completed");
+    if ((stopCount ?? 0) > 0 && partyDoneStops >= (stopCount ?? 0)) {
       await admin
         .from("adventures")
         .update({ status: "completed", completed_at: new Date().toISOString() })
         .eq("id", adventureId);
+    }
+
+    if ((stopCount ?? 0) > 0 && userDoneStops >= (stopCount ?? 0)) {
+      badgeKeysToAward.push("adventure_completed");
+
+      // One-time completion bonus — best-effort, same as the photo bonus
+      // above: an odd credit failure shouldn't fail the check-in itself.
+      const { error: completeCoinsErr } = await admin.rpc("credit_coins", {
+        p_profile_id: userId,
+        p_amount: ADVENTURE_COMPLETE_COINS,
+        p_reason: "adventure_complete",
+        p_adventure_id: adventureId,
+      });
+      if (!completeCoinsErr) coinsGained += ADVENTURE_COMPLETE_COINS;
     }
   }
 
@@ -400,6 +456,7 @@ Deno.serve(async (req) => {
     newLevel: xpResult.newLevel,
     leveledUp: !!xpResult.leveledUp,
     newBadges,
+    isFirstCheckinForStop,
   };
 
   if (stopErr || !currentStop) {
